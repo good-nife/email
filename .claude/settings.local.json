@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(Move-Item middleware.ts proxy.ts)",
+      "PowerShell(Move-Item \"c:\\\\Users\\\\jsd46\\\\code\\\\github\\\\email\\\\middleware.ts\" \"c:\\\\Users\\\\jsd46\\\\code\\\\github\\\\email\\\\proxy.ts\")"
+    ]
+  }
+}
