@@ -13,23 +13,30 @@ function cacheFile(userEmail: string) {
   return path.join(CACHE_DIR, `emails-${safe}.json`)
 }
 
-export interface EmailCache {
-  cachedAt: string
-  emails: CategorizedEmail[]
+export interface EmailCacheFile {
+  updatedAt: string
+  emails: Record<string, CategorizedEmail>
 }
 
-export function readCache(userEmail: string): EmailCache | null {
+export function readCacheMap(userEmail: string): EmailCacheFile | null {
   try {
     const file = cacheFile(userEmail)
     if (!fs.existsSync(file)) return null
-    return JSON.parse(fs.readFileSync(file, "utf-8"))
+    const raw = JSON.parse(fs.readFileSync(file, "utf-8"))
+    // Migrate old array-based format
+    if (Array.isArray(raw.emails)) {
+      const emailMap: Record<string, CategorizedEmail> = {}
+      for (const e of raw.emails) emailMap[e.id] = e
+      return { updatedAt: raw.cachedAt ?? new Date().toISOString(), emails: emailMap }
+    }
+    return raw as EmailCacheFile
   } catch {
     return null
   }
 }
 
-export function writeCache(userEmail: string, emails: CategorizedEmail[]): void {
+export function writeCacheMap(userEmail: string, emails: Record<string, CategorizedEmail>): void {
   ensureDir()
-  const data: EmailCache = { cachedAt: new Date().toISOString(), emails }
+  const data: EmailCacheFile = { updatedAt: new Date().toISOString(), emails }
   fs.writeFileSync(cacheFile(userEmail), JSON.stringify(data), "utf-8")
 }

@@ -7,13 +7,19 @@ function getClient(apiKey: string) {
 
 export async function categorizeEmails(
   apiKey: string,
-  emails: Email[]
+  emails: Email[],
+  existingCategories: string[] = []
 ): Promise<CategorizedEmail[]> {
+  if (emails.length === 0) return []
   const client = getClient(apiKey)
 
   const emailList = emails
     .map((e, i) => `${i}. From: ${e.from} | Subject: ${e.subject} | Snippet: ${e.snippet}`)
     .join("\n")
+
+  const categoryInstruction = existingCategories.length > 0
+    ? `Assign each email to one of these existing categories: ${existingCategories.map((c) => `"${c}"`).join(", ")}. Only create a new category if an email truly doesn't fit any existing one.`
+    : `First decide what 5-8 category names make sense for these specific emails. Use names that are useful and specific to this person's inbox (e.g. "Bank Alerts", "Family", "Package Tracking", "Work — Acme Corp") rather than generic buckets.`
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
@@ -21,11 +27,11 @@ export async function categorizeEmails(
     messages: [
       {
         role: "user",
-        content: `Look at these emails and organize them into meaningful categories that reflect what's actually in this inbox.
+        content: `Look at these emails and organize them into meaningful categories.
 
-First decide what 5-8 category names make sense for these specific emails. Use names that are useful and specific to this person's inbox (e.g. "Bank Alerts", "Family", "Package Tracking", "Work — Acme Corp") rather than generic buckets.
+${categoryInstruction}
 
-Then assign each email to one of your chosen categories.
+Then assign each email to a category.
 
 Emails:
 ${emailList}

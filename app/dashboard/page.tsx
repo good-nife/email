@@ -54,6 +54,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("")
   const [filter, setFilter] = useState("All")
   const [cachedAt, setCachedAt] = useState<string | null>(null)
+  const [newCount, setNewCount] = useState<number>(0)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [summaries, setSummaries] = useState<Record<string, string>>({})
   const [summaryLoading, setSummaryLoading] = useState<string | null>(null)
@@ -72,6 +73,7 @@ export default function DashboardPage() {
       const data = await res.json()
       setEmails(data.emails)
       setCachedAt(data.cachedAt ?? null)
+      setNewCount(data.newCount ?? 0)
     } catch (e: any) {
       setError(e.message || "Failed to load emails")
     } finally {
@@ -124,7 +126,11 @@ export default function DashboardPage() {
             </button>
           </div>
           {cachedAt && !loading && (
-            <p className="text-xs text-slate-400 mb-4">Updated {timeAgo(cachedAt)}</p>
+            <p className="text-xs text-slate-400 mb-4">
+              {newCount > 0
+                ? `${newCount} new · updated ${timeAgo(cachedAt)}`
+                : `Updated ${timeAgo(cachedAt)}`}
+            </p>
           )}
 
           {error && (
@@ -160,8 +166,8 @@ export default function DashboardPage() {
         {loading && (
           <div className="text-center py-20 text-slate-400">
             <div className="text-3xl mb-3">⏳</div>
-            <p>Loading and categorizing your emails…</p>
-            <p className="text-sm mt-1">This takes about 10 seconds</p>
+            <p>{emails.length > 0 ? "Checking for new emails…" : "Loading and categorizing your emails…"}</p>
+            {emails.length === 0 && <p className="text-sm mt-1">This takes about 10 seconds on first load</p>}
           </div>
         )}
 

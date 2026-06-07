@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { listEmails } from "@/lib/gmail"
+import { listEmailIds, fetchEmailsByIds } from "@/lib/gmail"
 import { categorizeEmails } from "@/lib/claude"
-import { readCache, writeCache } from "@/lib/cache"
+import { readCacheMap, writeCacheMap } from "@/lib/cache"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -18,16 +18,29 @@ export async function GET(req: NextRequest) {
   const userEmail = session.user?.email ?? "unknown"
   const force = req.nextUrl.searchParams.get("force") === "true"
 
-  if (!force) {
-    const cached = readCache(userEmail)
-    if (cached) {
-      return NextResponse.json({ emails: cached.emails, cachedAt: cached.cachedAt })
+  // Get current inbox IDs (lightweight — no body fetching)
+  const currentIds = await listEmailIds(session.accessToken, 40)
+
+  // Load cache (skip on force refresh)
+  const cacheData = force ? null : readCacheMap(userEmail)
+  const cachedEmails = cacheData ? { ...cacheData.emails } : {}
+
+  // Find emails not yet categorized
+  const newIds = currentIds.filter((id) => !cachedEmails[id])
+
+  if (newIds.length > 0) {
+    const newEmails = await fetchEmailsByIds(session.accessToken, newIds)
+    const existingCategories = [...new Set(Object.values(cachedEmails).map((e) => e.category))]
+    const newCategorized = await categorizeEmails(apiKey, newEmails, existingCategories)
+    for (const email of newCategorized) {
+      cachedEmails[email.id] = email
     }
+    writeCacheMap(userEmail, cachedEmails)
   }
 
-  const emails = await listEmails(session.accessToken, 40)
-  const categorized = await categorizeEmails(apiKey, emails)
-  writeCache(userEmail, categorized)
+  // Return emails in current inbox order
+  const emails = currentIds.map((id) => cachedEmails[id]).filter(Boolean)
+  const updatedAt = (newIds.length === 0 && cacheData) ? cacheData.updatedAt : new Date().toISOString()
 
-  return NextResponse.json({ emails: categorized, cachedAt: new Date().toISOString() })
+  return NextResponse.json({ emails, cachedAt: updatedAt, newCount: newIds.length })
 }

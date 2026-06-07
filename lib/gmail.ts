@@ -74,24 +74,28 @@ function parseEmail(msg: any): Email {
   }
 }
 
-export async function listEmails(accessToken: string, maxResults = 30): Promise<Email[]> {
+export async function listEmailIds(accessToken: string, maxResults = 40): Promise<string[]> {
   const gmail = getGmailClient(accessToken)
-
   const { data } = await gmail.users.messages.list({
     userId: "me",
     maxResults,
     labelIds: ["INBOX"],
   })
+  return (data.messages ?? []).map((m) => m.id!)
+}
 
-  if (!data.messages?.length) return []
-
+export async function fetchEmailsByIds(accessToken: string, ids: string[]): Promise<Email[]> {
+  if (ids.length === 0) return []
+  const gmail = getGmailClient(accessToken)
   const messages = await Promise.all(
-    data.messages.map((m) =>
-      gmail.users.messages.get({ userId: "me", id: m.id!, format: "full" })
-    )
+    ids.map((id) => gmail.users.messages.get({ userId: "me", id, format: "full" }))
   )
-
   return messages.map((r) => parseEmail(r.data))
+}
+
+export async function listEmails(accessToken: string, maxResults = 30): Promise<Email[]> {
+  const ids = await listEmailIds(accessToken, maxResults)
+  return fetchEmailsByIds(accessToken, ids)
 }
 
 export async function getThread(accessToken: string, threadId: string): Promise<Thread> {
