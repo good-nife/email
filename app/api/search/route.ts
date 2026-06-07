@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { searchThreads } from "@/lib/gmail"
-import { summarizeCorrespondence } from "@/lib/claude"
+import { summarizeCorrespondence, translateToGmailQuery } from "@/lib/claude"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -19,12 +19,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 })
   }
 
-  const threads = await searchThreads(session.accessToken, query)
+  const gmailQuery = await translateToGmailQuery(apiKey, query)
+  const threads = await searchThreads(session.accessToken, gmailQuery)
 
   if (!threads.length) {
-    return NextResponse.json({ threads: [], summary: "No emails found matching that search." })
+    return NextResponse.json({ threads: [], summary: "No emails found matching that search.", gmailQuery })
   }
 
   const summary = await summarizeCorrespondence(apiKey, threads, query)
-  return NextResponse.json({ threads, summary })
+  return NextResponse.json({ threads, summary, gmailQuery })
 }

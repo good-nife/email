@@ -123,6 +123,36 @@ Match their tone, length, and style. Only return the email body text, no subject
   return message.content[0].type === "text" ? message.content[0].text : ""
 }
 
+export async function translateToGmailQuery(
+  apiKey: string,
+  naturalLanguageQuery: string
+): Promise<string> {
+  const client = getClient(apiKey)
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 128,
+    messages: [
+      {
+        role: "user",
+        content: `Convert this natural language email search request into a Gmail search query. Return only the Gmail search query, nothing else — no explanation, no quotes around it.
+
+Gmail search supports: keywords, from:, to:, subject:, OR, -, has:attachment, is:unread, after:YYYY/MM/DD, before:YYYY/MM/DD
+
+Examples:
+"emails about hiring contractors" → contractor OR hiring OR freelance OR "independent contractor"
+"messages from John about the budget" → from:john budget
+"invoices I received last year" → subject:invoice after:2025/01/01 before:2026/01/01
+"unread emails about the website" → is:unread website
+
+Request: ${naturalLanguageQuery}`,
+      },
+    ],
+  })
+
+  return message.content[0].type === "text" ? message.content[0].text.trim() : naturalLanguageQuery
+}
+
 export async function summarizeCorrespondence(
   apiKey: string,
   threads: Thread[],

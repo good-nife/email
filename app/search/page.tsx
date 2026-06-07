@@ -16,6 +16,8 @@ export default function SearchPage() {
   const [error, setError] = useState("")
   const [searched, setSearched] = useState(false)
   const [expandedThread, setExpandedThread] = useState<string | null>(null)
+  const [gmailQuery, setGmailQuery] = useState("")
+
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     if (!query.trim()) return
@@ -25,6 +27,7 @@ export default function SearchPage() {
     setSummary("")
     setThreads([])
     setSearched(false)
+    setGmailQuery("")
 
     try {
       const res = await fetch("/api/search", {
@@ -36,6 +39,7 @@ export default function SearchPage() {
       const data = await res.json()
       setThreads(data.threads)
       setSummary(data.summary)
+      setGmailQuery(data.gmailQuery ?? "")
       setSearched(true)
     } catch (e: any) {
       setError(e.message || "Search failed")
@@ -53,7 +57,7 @@ export default function SearchPage() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name or email, e.g. 'John' or 'john@example.com'"
+          placeholder="e.g. 'John Smith', 'invoices from last year', 'emails about hiring contractors'"
           className="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <button
@@ -76,6 +80,12 @@ export default function SearchPage() {
           <div className="text-3xl mb-3">🔍</div>
           <p>Searching your emails and building a summary…</p>
         </div>
+      )}
+
+      {searched && !loading && gmailQuery && (
+        <p className="text-xs text-slate-400 mb-4">
+          Searched Gmail for: <span className="font-mono text-slate-500">{gmailQuery}</span>
+        </p>
       )}
 
       {searched && !loading && (
