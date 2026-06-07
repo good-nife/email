@@ -123,6 +123,45 @@ Match their tone, length, and style. Only return the email body text, no subject
   return message.content[0].type === "text" ? message.content[0].text : ""
 }
 
+export async function summarizeThread(
+  apiKey: string,
+  thread: Thread,
+  messageCount: number | "all"
+): Promise<string> {
+  const client = getClient(apiKey)
+
+  const messages = messageCount === "all"
+    ? thread.messages
+    : thread.messages.slice(-messageCount)
+
+  const formatted = messages
+    .map((m) => `From: ${m.from}\n${m.body.trim() || m.snippet}`)
+    .join("\n\n---\n\n")
+
+  const scope = messageCount === "all"
+    ? "the entire thread"
+    : messageCount === 1
+    ? "the latest message"
+    : `the last ${messageCount} messages`
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 512,
+    messages: [
+      {
+        role: "user",
+        content: `Summarize ${scope} of this email thread concisely. Cover the key points, any requests or action items, and the overall tone. 3-5 sentences max.
+
+Thread subject: ${thread.subject}
+
+${formatted}`,
+      },
+    ],
+  })
+
+  return message.content[0].type === "text" ? message.content[0].text : ""
+}
+
 export async function translateToGmailQuery(
   apiKey: string,
   naturalLanguageQuery: string

@@ -14,6 +14,7 @@ function ComposePage() {
   const router = useRouter()
   const mode = searchParams.get("mode") // "reply" or null (new)
   const threadId = searchParams.get("threadId")
+  const scope = searchParams.get("scope") ?? "full" // "latest" or "full"
 
   const [thread, setThread] = useState<Thread | null>(null)
   const [to, setTo] = useState("")
@@ -57,7 +58,7 @@ function ComposePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           threadId
-            ? { threadId }
+            ? { threadId, scope }
             : { to, subject, context }
         ),
       })
@@ -110,9 +111,16 @@ function ComposePage() {
         <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-700 transition-colors text-sm">
           ← Back
         </button>
-        <h1 className="text-2xl font-bold text-slate-900">
-          {mode === "reply" ? "Reply" : "New Email"}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {mode === "reply" ? "Reply" : "New Email"}
+          </h1>
+          {mode === "reply" && (
+            <p className="text-xs text-slate-400 mt-0.5">
+              AI draft uses {scope === "latest" ? "latest message only" : "full thread history"}
+            </p>
+          )}
+        </div>
       </div>
 
       {error && (

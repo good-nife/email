@@ -15,14 +15,18 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { threadId, to, subject, context } = body
+  const { threadId, to, subject, context, scope } = body
 
   const [sentEmails] = await Promise.all([getSentEmails(session.accessToken, 15)])
 
   let draft: string
 
   if (threadId) {
-    const thread = await getThread(session.accessToken, threadId)
+    let thread = await getThread(session.accessToken, threadId)
+    // "latest" scope: only use the last message for context
+    if (scope === "latest") {
+      thread = { ...thread, messages: thread.messages.slice(-1) }
+    }
     draft = await draftReply(apiKey, thread, sentEmails)
   } else {
     draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails)
