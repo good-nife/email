@@ -287,6 +287,16 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Email body */}
+                  <div className="border-t border-slate-100 pt-4">
+                    <p className="text-xs text-slate-400 mb-3">
+                      {email.from} · {formatDate(email.date)}
+                    </p>
+                    <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
+                      {email.body || email.snippet || "(no content)"}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
