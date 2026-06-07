@@ -18,10 +18,18 @@ export interface Thread {
   messages: Email[]
   lastDate: string
   snippet: string
+  isRead: boolean
+  messageCount: number
+}
+
+export interface CategorizedThread extends Thread {
+  category: string
+  tags: string[]
 }
 
 export type Category = string
 
+// Kept for backward compat with draft/search routes
 export interface CategorizedEmail extends Email {
   category: Category
   tags: string[]

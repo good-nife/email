@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { listEmailIds, fetchEmailsByIds } from "@/lib/gmail"
-import { categorizeEmails } from "@/lib/claude"
+import { listThreadIds, fetchThreadsByIds } from "@/lib/gmail"
+import { categorizeThreads } from "@/lib/claude"
 import { readCacheMap, writeCacheMap } from "@/lib/cache"
+import { CategorizedThread } from "@/types"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -19,35 +20,34 @@ export async function GET(req: NextRequest) {
   const force = req.nextUrl.searchParams.get("force") === "true"
 
   try {
-    const currentIds = await listEmailIds(session.accessToken, 40)
+    const currentIds = await listThreadIds(session.accessToken, 40)
 
-    const cacheData = force ? null : readCacheMap(userEmail)
-    const cachedEmails = cacheData ? { ...cacheData.emails } : {}
+    const cacheData = force ? null : readCacheMap<CategorizedThread>(userEmail)
+    const cached = cacheData ? { ...cacheData.emails } : {}
 
-    const newIds = currentIds.filter((id) => !cachedEmails[id])
+    const newIds = currentIds.filter((id) => !cached[id])
 
     if (newIds.length > 0) {
-      const newEmails = await fetchEmailsByIds(session.accessToken, newIds)
-      const existingCategories = [...new Set(Object.values(cachedEmails).map((e) => e.category))]
-      const newCategorized = await categorizeEmails(apiKey, newEmails, existingCategories)
-      for (const email of newCategorized) {
-        cachedEmails[email.id] = email
+      const newThreads = await fetchThreadsByIds(session.accessToken, newIds)
+      const existingCategories = [...new Set(Object.values(cached).map((t) => t.category))]
+      const categorized = await categorizeThreads(apiKey, newThreads, existingCategories)
+      for (const thread of categorized) {
+        cached[thread.id] = thread
       }
-      writeCacheMap(userEmail, cachedEmails)
+      writeCacheMap<CategorizedThread>(userEmail, cached)
     }
 
-    const emails = currentIds.map((id) => cachedEmails[id]).filter(Boolean)
-    const updatedAt = (newIds.length === 0 && cacheData) ? cacheData.updatedAt : new Date().toISOString()
+    const threads = currentIds.map((id) => cached[id]).filter(Boolean)
+    const updatedAt = newIds.length === 0 && cacheData ? cacheData.updatedAt : new Date().toISOString()
 
-    return NextResponse.json({ emails, cachedAt: updatedAt, newCount: newIds.length })
+    return NextResponse.json({ threads, cachedAt: updatedAt, newCount: newIds.length })
   } catch (err: any) {
     console.error("[/api/emails]", err?.message ?? err)
 
-    // Fall back to whatever is in cache rather than showing an error
-    const cached = readCacheMap(userEmail)
+    const cached = readCacheMap<CategorizedThread>(userEmail)
     if (cached && !force) {
-      const emails = Object.values(cached.emails)
-      return NextResponse.json({ emails, cachedAt: cached.updatedAt, newCount: 0 })
+      const threads = Object.values(cached.emails)
+      return NextResponse.json({ threads, cachedAt: cached.updatedAt, newCount: 0 })
     }
 
     return NextResponse.json(

@@ -14,12 +14,10 @@ function decodeBase64(data: string): string {
 function extractBody(payload: any): string {
   if (!payload) return ""
 
-  // Plain text directly in body
   if (payload.mimeType === "text/plain" && payload.body?.data) {
     return decodeBase64(payload.body.data)
   }
 
-  // HTML fallback
   if (payload.mimeType === "text/html" && payload.body?.data) {
     return decodeBase64(payload.body.data)
       .replace(/<[^>]+>/g, " ")
@@ -27,7 +25,6 @@ function extractBody(payload: any): string {
       .trim()
   }
 
-  // Multipart — prefer plain text part
   if (payload.parts) {
     const plain = payload.parts.find((p: any) => p.mimeType === "text/plain")
     if (plain?.body?.data) return decodeBase64(plain.body.data)
@@ -39,7 +36,6 @@ function extractBody(payload: any): string {
         .replace(/\s+/g, " ")
         .trim()
 
-    // Recurse into nested multipart
     for (const part of payload.parts) {
       const body = extractBody(part)
       if (body) return body
@@ -74,49 +70,53 @@ function parseEmail(msg: any): Email {
   }
 }
 
-export async function listEmailIds(accessToken: string, maxResults = 40): Promise<string[]> {
+function parseThread(data: any): Thread {
+  const messages = (data.messages ?? []).map(parseEmail)
+  const subject = messages[0]?.subject ?? "(no subject)"
+  return {
+    id: data.id!,
+    subject,
+    participants: [...new Set<string>(messages.map((m: Email) => m.from))],
+    messages,
+    lastDate: messages[messages.length - 1]?.date ?? "",
+    snippet: data.snippet ?? "",
+    isRead: messages.every((m: Email) => m.isRead),
+    messageCount: messages.length,
+  }
+}
+
+// --- Thread-based inbox ---
+
+export async function listThreadIds(accessToken: string, maxResults = 40): Promise<string[]> {
   const gmail = getGmailClient(accessToken)
-  const { data } = await gmail.users.messages.list({
+  const { data } = await gmail.users.threads.list({
     userId: "me",
     maxResults,
     labelIds: ["INBOX"],
   })
-  return (data.messages ?? []).map((m) => m.id!)
+  return (data.threads ?? []).map((t) => t.id!)
 }
 
-export async function fetchEmailsByIds(accessToken: string, ids: string[]): Promise<Email[]> {
+export async function fetchThreadsByIds(accessToken: string, ids: string[]): Promise<Thread[]> {
   if (ids.length === 0) return []
   const gmail = getGmailClient(accessToken)
-  const messages = await Promise.all(
-    ids.map((id) => gmail.users.messages.get({ userId: "me", id, format: "full" }))
+  const results = await Promise.all(
+    ids.map((id) => gmail.users.threads.get({ userId: "me", id, format: "full" }))
   )
-  return messages.map((r) => parseEmail(r.data))
+  return results.map((r) => parseThread(r.data))
 }
 
-export async function listEmails(accessToken: string, maxResults = 30): Promise<Email[]> {
-  const ids = await listEmailIds(accessToken, maxResults)
-  return fetchEmailsByIds(accessToken, ids)
-}
+// --- Single thread (for summarize / draft routes) ---
 
 export async function getThread(accessToken: string, threadId: string): Promise<Thread> {
   const gmail = getGmailClient(accessToken)
   const { data } = await gmail.users.threads.get({ userId: "me", id: threadId, format: "full" })
-
-  const messages = (data.messages ?? []).map(parseEmail)
-  const subject = messages[0]?.subject ?? "(no subject)"
-  const participants = [...new Set(messages.map((m) => m.from))]
-
-  return {
-    id: data.id!,
-    subject,
-    participants,
-    messages,
-    lastDate: messages[messages.length - 1]?.date ?? "",
-    snippet: data.snippet ?? "",
-  }
+  return parseThread(data)
 }
 
-export async function getSentEmails(accessToken: string, maxResults = 15): Promise<Email[]> {
+// --- Sent ---
+
+export async function getSentEmails(accessToken: string, maxResults = 30): Promise<Email[]> {
   const gmail = getGmailClient(accessToken)
 
   const { data } = await gmail.users.messages.list({
@@ -136,6 +136,8 @@ export async function getSentEmails(accessToken: string, maxResults = 15): Promi
   return messages.map((r) => parseEmail(r.data))
 }
 
+// --- Search ---
+
 export async function searchThreads(accessToken: string, query: string): Promise<Thread[]> {
   const gmail = getGmailClient(accessToken)
 
@@ -147,25 +149,16 @@ export async function searchThreads(accessToken: string, query: string): Promise
 
   if (!data.threads?.length) return []
 
-  const threads = await Promise.all(
+  const results = await Promise.all(
     data.threads.map((t) =>
       gmail.users.threads.get({ userId: "me", id: t.id!, format: "full" })
     )
   )
 
-  return threads.map((r) => {
-    const messages = (r.data.messages ?? []).map(parseEmail)
-    const subject = messages[0]?.subject ?? "(no subject)"
-    return {
-      id: r.data.id!,
-      subject,
-      participants: [...new Set(messages.map((m) => m.from))],
-      messages,
-      lastDate: messages[messages.length - 1]?.date ?? "",
-      snippet: r.data.snippet ?? "",
-    }
-  })
+  return results.map((r) => parseThread(r.data))
 }
+
+// --- Send ---
 
 export async function sendEmail(
   accessToken: string,

@@ -1,6 +1,5 @@
 import fs from "fs"
 import path from "path"
-import { CategorizedEmail } from "@/types"
 
 const CACHE_DIR = path.join(process.cwd(), ".cache")
 
@@ -8,35 +7,38 @@ function ensureDir() {
   if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true })
 }
 
-function cacheFile(userEmail: string) {
+function cacheFile(userEmail: string, prefix: string) {
   const safe = userEmail.replace(/[^a-z0-9]/gi, "_")
-  return path.join(CACHE_DIR, `emails-${safe}.json`)
+  return path.join(CACHE_DIR, `${prefix}-${safe}.json`)
 }
 
-export interface EmailCacheFile {
+export interface CacheFile<T> {
   updatedAt: string
-  emails: Record<string, CategorizedEmail>
+  emails: Record<string, T>
 }
 
-export function readCacheMap(userEmail: string): EmailCacheFile | null {
+export function readCacheMap<T>(userEmail: string, prefix = "threads"): CacheFile<T> | null {
   try {
-    const file = cacheFile(userEmail)
+    const file = cacheFile(userEmail, prefix)
     if (!fs.existsSync(file)) return null
     const raw = JSON.parse(fs.readFileSync(file, "utf-8"))
     // Migrate old array-based format
     if (Array.isArray(raw.emails)) {
-      const emailMap: Record<string, CategorizedEmail> = {}
-      for (const e of raw.emails) emailMap[e.id] = e
-      return { updatedAt: raw.cachedAt ?? new Date().toISOString(), emails: emailMap }
+      const map: Record<string, T> = {}
+      for (const e of raw.emails) map[e.id] = e
+      return { updatedAt: raw.cachedAt ?? new Date().toISOString(), emails: map }
     }
-    return raw as EmailCacheFile
+    return raw as CacheFile<T>
   } catch {
     return null
   }
 }
 
-export function writeCacheMap(userEmail: string, emails: Record<string, CategorizedEmail>): void {
+export function writeCacheMap<T>(userEmail: string, data: Record<string, T>, prefix = "threads"): void {
   ensureDir()
-  const data: EmailCacheFile = { updatedAt: new Date().toISOString(), emails }
-  fs.writeFileSync(cacheFile(userEmail), JSON.stringify(data), "utf-8")
+  fs.writeFileSync(
+    cacheFile(userEmail, prefix),
+    JSON.stringify({ updatedAt: new Date().toISOString(), emails: data }),
+    "utf-8"
+  )
 }

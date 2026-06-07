@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { Category, CategorizedEmail, Email, Thread } from "@/types"
+import { Category, CategorizedEmail, CategorizedThread, Email, Thread } from "@/types"
 
 function getClient(apiKey: string) {
   return new Anthropic({ apiKey })
@@ -51,6 +51,61 @@ Reply with JSON only, no explanation:
     const assignment = result.assignments.find((a) => a.index === i)
     return {
       ...email,
+      category: assignment?.category ?? "Other",
+      tags: assignment?.tags ?? [],
+    }
+  })
+}
+
+export async function categorizeThreads(
+  apiKey: string,
+  threads: Thread[],
+  existingCategories: string[] = []
+): Promise<CategorizedThread[]> {
+  if (threads.length === 0) return []
+  const client = getClient(apiKey)
+
+  const threadList = threads
+    .map((t, i) =>
+      `${i}. Subject: ${t.subject} | From: ${t.participants.slice(0, 3).join(", ")} | Messages: ${t.messageCount} | Preview: ${t.snippet.slice(0, 120)}`
+    )
+    .join("\n")
+
+  const categoryInstruction =
+    existingCategories.length > 0
+      ? `Assign each conversation to one of these existing categories: ${existingCategories.map((c) => `"${c}"`).join(", ")}. Only create a new category if a conversation truly doesn't fit any existing one.`
+      : `First decide what 5-8 category names make sense for these conversations. Use names specific to this inbox (e.g. "Bank Alerts", "Family", "Work — Acme Corp") rather than generic buckets.`
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    messages: [
+      {
+        role: "user",
+        content: `Look at these email conversations and organize them into meaningful categories.
+
+${categoryInstruction}
+
+Also assign 2-4 short semantic tags to each conversation (lowercase, hyphenated if multi-word).
+
+Conversations:
+${threadList}
+
+Reply with JSON only, no explanation:
+{"categories":["Cat1","Cat2",...],"assignments":[{"index":0,"category":"Cat1","tags":["tag1","tag2"]},{"index":1,"category":"Cat2","tags":["tag3"]},...]}`,
+      },
+    ],
+  })
+
+  const text = message.content[0].type === "text" ? message.content[0].text : "{}"
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  const result: { categories: string[]; assignments: { index: number; category: string; tags: string[] }[] } =
+    jsonMatch ? JSON.parse(jsonMatch[0]) : { categories: [], assignments: [] }
+
+  return threads.map((thread, i) => {
+    const assignment = result.assignments.find((a) => a.index === i)
+    return {
+      ...thread,
       category: assignment?.category ?? "Other",
       tags: assignment?.tags ?? [],
     }
