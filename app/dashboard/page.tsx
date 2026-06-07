@@ -207,6 +207,15 @@ export default function DashboardPage() {
                       {email.subject}
                     </div>
                     <div className="text-xs text-slate-400 truncate">{email.snippet}</div>
+                    {email.tags?.length > 0 && (
+                      <div className="flex gap-1 flex-wrap mt-1.5">
+                        {email.tags.map((tag) => (
+                          <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 font-mono">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-xs text-slate-400">{formatDate(email.date)}</div>

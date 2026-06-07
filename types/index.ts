@@ -24,4 +24,5 @@ export type Category = string
 
 export interface CategorizedEmail extends Email {
   category: Category
+  tags: string[]
 }

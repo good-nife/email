@@ -23,7 +23,7 @@ export async function categorizeEmails(
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [
       {
         role: "user",
@@ -31,26 +31,30 @@ export async function categorizeEmails(
 
 ${categoryInstruction}
 
-Then assign each email to a category.
+Also assign 2-4 short semantic tags to each email (lowercase, hyphenated if multi-word) describing its topic, sender type, or action required — e.g. "invoice", "follow-up", "shipping", "family", "bank-alert", "newsletter", "action-required".
 
 Emails:
 ${emailList}
 
 Reply with JSON only, no explanation:
-{"categories":["Cat1","Cat2",...],"assignments":[{"index":0,"category":"Cat1"},{"index":1,"category":"Cat2"},...]}`,
+{"categories":["Cat1","Cat2",...],"assignments":[{"index":0,"category":"Cat1","tags":["tag1","tag2"]},{"index":1,"category":"Cat2","tags":["tag3"]},...]}`,
       },
     ],
   })
 
   const text = message.content[0].type === "text" ? message.content[0].text : "{}"
   const jsonMatch = text.match(/\{[\s\S]*\}/)
-  const result: { categories: string[]; assignments: { index: number; category: string }[] } =
+  const result: { categories: string[]; assignments: { index: number; category: string; tags: string[] }[] } =
     jsonMatch ? JSON.parse(jsonMatch[0]) : { categories: [], assignments: [] }
 
-  return emails.map((email, i) => ({
-    ...email,
-    category: result.assignments.find((a) => a.index === i)?.category ?? "Other",
-  }))
+  return emails.map((email, i) => {
+    const assignment = result.assignments.find((a) => a.index === i)
+    return {
+      ...email,
+      category: assignment?.category ?? "Other",
+      tags: assignment?.tags ?? [],
+    }
+  })
 }
 
 export async function draftReply(
