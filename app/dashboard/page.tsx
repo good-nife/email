@@ -109,67 +109,70 @@ export default function DashboardPage() {
   const uniqueCategories = [...new Set(emails.map((e) => e.category))]
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
-          {cachedAt && !loading && (
-            <p className="text-xs text-slate-400 mt-0.5">Updated {timeAgo(cachedAt)}</p>
-          )}
-        </div>
-        <button
-          onClick={() => loadEmails(true)}
-          disabled={loading}
-          className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-40 transition-colors"
-        >
-          {loading ? "Loading…" : "Refresh"}
-        </button>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-          {error}
-        </div>
-      )}
-
-      {/* Category filter tabs */}
-      {emails.length > 0 && (
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-          {(["All", ...uniqueCategories] as string[]).map((cat) => (
+    <div className="flex gap-0 min-h-screen">
+      {/* Left sidebar */}
+      <aside className="w-52 shrink-0 border-r border-slate-200 bg-white">
+        <div className="sticky top-16 p-4">
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-lg font-bold text-slate-900">Inbox</h1>
             <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                filter === cat
-                  ? "bg-blue-600 text-white"
-                  : "bg-white border border-slate-200 text-slate-600 hover:border-slate-400"
-              }`}
+              onClick={() => loadEmails(true)}
+              disabled={loading}
+              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40 transition-colors"
             >
-              {cat}
-              <span className="ml-1 opacity-70">
-                {cat === "All" ? emails.length : counts[cat]}
-              </span>
+              {loading ? "…" : "Refresh"}
             </button>
-          ))}
-        </div>
-      )}
+          </div>
+          {cachedAt && !loading && (
+            <p className="text-xs text-slate-400 mb-4">Updated {timeAgo(cachedAt)}</p>
+          )}
 
-      {loading && (
-        <div className="text-center py-20 text-slate-400">
-          <div className="text-3xl mb-3">⏳</div>
-          <p>Loading and categorizing your emails…</p>
-          <p className="text-sm mt-1">This takes about 10 seconds</p>
-        </div>
-      )}
+          {error && (
+            <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              {error}
+            </div>
+          )}
 
-      {!loading && !error && emails.length === 0 && (
-        <div className="text-center py-20 text-slate-400">
-          <div className="text-3xl mb-3">📭</div>
-          <p>No emails found.</p>
+          {/* Category list */}
+          <nav className="space-y-0.5">
+            {(["All", ...uniqueCategories] as string[]).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFilter(cat)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                  filter === cat
+                    ? "bg-blue-50 text-blue-700 font-medium"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <span className="truncate">{cat}</span>
+                <span className={`text-xs ml-1 shrink-0 ${filter === cat ? "text-blue-500" : "text-slate-400"}`}>
+                  {cat === "All" ? emails.length : counts[cat]}
+                </span>
+              </button>
+            ))}
+          </nav>
         </div>
-      )}
+      </aside>
 
-      <div className="space-y-2">
+      {/* Main email list */}
+      <main className="flex-1 min-w-0 px-6 py-6">
+        {loading && (
+          <div className="text-center py-20 text-slate-400">
+            <div className="text-3xl mb-3">⏳</div>
+            <p>Loading and categorizing your emails…</p>
+            <p className="text-sm mt-1">This takes about 10 seconds</p>
+          </div>
+        )}
+
+        {!loading && !error && emails.length === 0 && (
+          <div className="text-center py-20 text-slate-400">
+            <div className="text-3xl mb-3">📭</div>
+            <p>No emails found.</p>
+          </div>
+        )}
+
+        <div className="space-y-2 max-w-3xl">
         {filtered.map((email) => {
           const isExpanded = expandedId === email.id
           return (
@@ -274,7 +277,8 @@ export default function DashboardPage() {
             </div>
           )
         })}
-      </div>
+        </div>
+      </main>
     </div>
   )
 }
