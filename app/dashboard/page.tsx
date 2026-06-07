@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { CategorizedEmail } from "@/types"
+import ComposePanel from "@/components/ComposePanel"
 
 const COLOR_POOL = [
   "bg-blue-100 text-blue-700",
@@ -58,7 +58,7 @@ export default function DashboardPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [summaries, setSummaries] = useState<Record<string, string>>({})
   const [summaryLoading, setSummaryLoading] = useState<string | null>(null)
-  const router = useRouter()
+  const [compose, setCompose] = useState<{ threadId: string; scope: string } | null>(null)
 
   useEffect(() => {
     loadEmails(false)
@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
   async function loadEmails(force: boolean, silent = false) {
     if (!silent) setLoading(true)
-    setError("")
+    if (!silent) setError("")
     try {
       const res = await fetch(`/api/emails${force ? "?force=true" : ""}`)
       if (!res.ok) throw new Error(await res.text())
@@ -81,7 +81,7 @@ export default function DashboardPage() {
       setCachedAt(data.cachedAt ?? null)
       setNewCount(data.newCount ?? 0)
     } catch (e: any) {
-      setError(e.message || "Failed to load emails")
+      if (!silent) setError(e.message || "Failed to load emails")
     } finally {
       if (!silent) setLoading(false)
     }
@@ -259,19 +259,19 @@ export default function DashboardPage() {
                     <span className="text-slate-200 mx-1">|</span>
                     <span className="text-xs text-slate-400 mr-1">Reply</span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); router.push(`/compose?mode=reply&threadId=${email.threadId}&scope=latest`) }}
+                      onClick={(e) => { e.stopPropagation(); setCompose({ threadId: email.threadId, scope: "latest" }) }}
                       className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                     >
                       Latest
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); router.push(`/compose?mode=reply&threadId=${email.threadId}&scope=full`) }}
+                      onClick={(e) => { e.stopPropagation(); setCompose({ threadId: email.threadId, scope: "full" }) }}
                       className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                     >
                       Full history
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); router.push(`/compose?mode=reply&threadId=${email.threadId}`) }}
+                      onClick={(e) => { e.stopPropagation(); setCompose({ threadId: email.threadId, scope: "none" }) }}
                       className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                     >
                       Manual
@@ -304,6 +304,15 @@ export default function DashboardPage() {
         })}
         </div>
       </main>
+
+      {compose && (
+        <ComposePanel
+          threadId={compose.threadId}
+          scope={compose.scope === "none" ? undefined : compose.scope}
+          onClose={() => setCompose(null)}
+          onSent={() => setCompose(null)}
+        />
+      )}
     </div>
   )
 }

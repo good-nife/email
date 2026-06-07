@@ -1,53 +1,22 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { Thread } from "@/types"
+import { useRef, useState, Suspense } from "react"
+import { useRouter } from "next/navigation"
 
-function formatDate(dateStr: string) {
-  if (!dateStr) return ""
-  return new Date(dateStr).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+function execFormat(command: string) {
+  document.execCommand(command, false)
 }
 
 function ComposePage() {
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const mode = searchParams.get("mode") // "reply" or null (new)
-  const threadId = searchParams.get("threadId")
-  const scope = searchParams.get("scope") ?? "full" // "latest" or "full"
-
-  const [thread, setThread] = useState<Thread | null>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const [to, setTo] = useState("")
   const [subject, setSubject] = useState("")
-  const [body, setBody] = useState("")
   const [context, setContext] = useState("")
-  const [loadingThread, setLoadingThread] = useState(false)
   const [loadingDraft, setLoadingDraft] = useState(false)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
-
-  useEffect(() => {
-    if (mode === "reply" && threadId) {
-      loadThread(threadId)
-    }
-  }, [mode, threadId])
-
-  async function loadThread(id: string) {
-    setLoadingThread(true)
-    try {
-      const res = await fetch(`/api/thread/${id}`)
-      if (!res.ok) throw new Error("Failed to load thread")
-      const data = await res.json()
-      setThread(data.thread)
-      setTo(data.thread.messages[0]?.fromEmail ?? "")
-      setSubject(`Re: ${data.thread.subject}`)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoadingThread(false)
-    }
-  }
 
   async function handleDraft() {
     setLoadingDraft(true)
@@ -56,15 +25,16 @@ function ComposePage() {
       const res = await fetch("/api/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          threadId
-            ? { threadId, scope }
-            : { to, subject, context }
-        ),
+        body: JSON.stringify({ to, subject, context }),
       })
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
-      setBody(data.draft)
+      if (bodyRef.current) {
+        bodyRef.current.innerHTML = data.draft
+          .split("\n\n")
+          .map((p: string) => `<p>${p.replace(/\n/g, "<br>")}</p>`)
+          .join("")
+      }
     } catch (e: any) {
       setError(e.message || "Failed to generate draft")
     } finally {
@@ -73,6 +43,7 @@ function ComposePage() {
   }
 
   async function handleSend() {
+    const body = bodyRef.current?.innerHTML ?? ""
     if (!to || !subject || !body) {
       setError("To, subject, and body are required.")
       return
@@ -83,7 +54,7 @@ function ComposePage() {
       const res = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, subject, body, threadId: threadId ?? undefined }),
+        body: JSON.stringify({ to, subject, body }),
       })
       if (!res.ok) throw new Error(await res.text())
       setSent(true)
@@ -107,57 +78,23 @@ function ComposePage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-700 transition-colors text-sm">
-          ← Back
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {mode === "reply" ? "Reply" : "New Email"}
-          </h1>
-          {mode === "reply" && (
-            <p className="text-xs text-slate-400 mt-0.5">
-              AI draft uses {scope === "latest" ? "latest message only" : "full thread history"}
-            </p>
-          )}
-        </div>
-      </div>
+      <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden flex flex-col" style={{ minHeight: 560 }}>
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          {error}{" "}
-          {error.includes("API key") && <a href="/settings" className="underline font-medium">Settings</a>}
+        {/* Outlook-style dark header */}
+        <div className="flex items-center justify-between px-5 py-3 bg-slate-700 text-white shrink-0">
+          <span className="text-sm font-medium">{subject || "New Message"}</span>
+          <button
+            onClick={() => router.back()}
+            className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded transition-colors text-sm"
+          >
+            ✕
+          </button>
         </div>
-      )}
 
-      {/* Thread history */}
-      {loadingThread && (
-        <div className="mb-6 text-slate-400 text-sm">Loading thread…</div>
-      )}
-      {thread && (
-        <div className="mb-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">
-            Thread: {thread.subject}
-          </div>
-          <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
-            {thread.messages.map((msg) => (
-              <div key={msg.id} className="px-5 py-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-800">{msg.from}</span>
-                  <span className="text-xs text-slate-400">{formatDate(msg.date)}</span>
-                </div>
-                <p className="text-sm text-slate-600 whitespace-pre-wrap line-clamp-4">{msg.body || msg.snippet}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Compose form */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="divide-y divide-slate-100">
-          <div className="flex items-center px-5 py-3 gap-3">
-            <label className="text-sm font-medium text-slate-500 w-16">To</label>
+        {/* To / Subject / Notes */}
+        <div className="border-b border-slate-100 shrink-0">
+          <div className="flex items-center px-5 py-3 border-b border-slate-100">
+            <span className="text-xs text-slate-400 w-16 shrink-0">To</span>
             <input
               type="email"
               value={to}
@@ -166,63 +103,90 @@ function ComposePage() {
               className="flex-1 text-sm text-slate-900 outline-none placeholder:text-slate-300"
             />
           </div>
-          <div className="flex items-center px-5 py-3 gap-3">
-            <label className="text-sm font-medium text-slate-500 w-16">Subject</label>
+          <div className="flex items-center px-5 py-3 border-b border-slate-100">
+            <span className="text-xs text-slate-400 w-16 shrink-0">Subject</span>
             <input
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Subject"
-              className="flex-1 text-sm text-slate-900 outline-none placeholder:text-slate-300"
+              className="flex-1 text-sm text-slate-900 outline-none placeholder:text-slate-300 font-medium"
             />
           </div>
-
-          {/* Context field for new emails */}
-          {!threadId && (
-            <div className="flex items-start px-5 py-3 gap-3">
-              <label className="text-sm font-medium text-slate-500 w-16 pt-0.5">Notes</label>
-              <textarea
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                placeholder="What should the email cover? (optional — AI uses this to write the draft)"
-                rows={2}
-                className="flex-1 text-sm text-slate-900 outline-none resize-none placeholder:text-slate-300"
-              />
-            </div>
-          )}
-
-          <div className="px-5 py-3">
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your message here, or click 'Draft with AI' below…"
-              rows={10}
-              className="w-full text-sm text-slate-900 outline-none resize-none placeholder:text-slate-300"
+          <div className="flex items-center px-5 py-3">
+            <span className="text-xs text-slate-400 w-16 shrink-0">Notes</span>
+            <input
+              type="text"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="What should the AI cover? (optional)"
+              className="flex-1 text-sm text-slate-900 outline-none placeholder:text-slate-300"
             />
           </div>
         </div>
 
-        <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center gap-3">
+        {/* Formatting toolbar */}
+        <div className="flex items-center gap-0.5 px-4 py-1.5 border-b border-slate-100 bg-slate-50 shrink-0">
+          {[
+            { label: "B", cmd: "bold", className: "font-bold" },
+            { label: "I", cmd: "italic", className: "italic" },
+            { label: "U", cmd: "underline", className: "underline" },
+          ].map(({ label, cmd, className }) => (
+            <button
+              key={cmd}
+              onMouseDown={(e) => { e.preventDefault(); execFormat(cmd) }}
+              className={`w-7 h-7 flex items-center justify-center text-sm text-slate-600 hover:bg-slate-200 rounded transition-colors ${className}`}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="w-px h-4 bg-slate-300 mx-1.5 shrink-0" />
+          <button
+            onMouseDown={(e) => { e.preventDefault(); execFormat("insertUnorderedList") }}
+            className="px-2 h-7 flex items-center text-xs text-slate-600 hover:bg-slate-200 rounded gap-1 transition-colors"
+          >
+            <span>•</span><span>List</span>
+          </button>
+          <button
+            onMouseDown={(e) => { e.preventDefault(); execFormat("insertOrderedList") }}
+            className="px-2 h-7 flex items-center text-xs text-slate-600 hover:bg-slate-200 rounded gap-1 transition-colors"
+          >
+            <span>1.</span><span>List</span>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div
+          ref={bodyRef}
+          contentEditable
+          suppressContentEditableWarning
+          data-placeholder="Write your message or click 'AI Draft'…"
+          className="flex-1 px-5 py-4 text-sm text-slate-900 outline-none leading-relaxed overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-slate-300 empty:before:pointer-events-none"
+        />
+
+        {/* Error */}
+        {error && (
+          <div className="px-5 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100 shrink-0">
+            {error}
+          </div>
+        )}
+
+        {/* Bottom toolbar */}
+        <div className="flex items-center gap-3 px-5 py-3 border-t border-slate-100 bg-slate-50 shrink-0">
           <button
             onClick={handleSend}
-            disabled={sending || !to || !subject || !body}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
+            disabled={sending}
+            className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-full transition-colors"
           >
             {sending ? "Sending…" : "Send"}
           </button>
-
           <button
             onClick={handleDraft}
             disabled={loadingDraft}
-            className="px-5 py-2 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-40 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 disabled:opacity-40 rounded-full transition-colors"
           >
-            {loadingDraft ? (
-              <>⏳ Writing…</>
-            ) : (
-              <>✨ Draft with AI</>
-            )}
+            {loadingDraft ? "Writing…" : "✨ AI Draft"}
           </button>
-
         </div>
       </div>
     </div>
