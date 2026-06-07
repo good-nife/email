@@ -62,10 +62,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadEmails(false)
+
+    const poll = setInterval(() => {
+      if (!document.hidden) loadEmails(false, true)
+    }, 30_000)
+
+    return () => clearInterval(poll)
   }, [])
 
-  async function loadEmails(force: boolean) {
-    setLoading(true)
+  async function loadEmails(force: boolean, silent = false) {
+    if (!silent) setLoading(true)
     setError("")
     try {
       const res = await fetch(`/api/emails${force ? "?force=true" : ""}`)
@@ -77,7 +83,7 @@ export default function DashboardPage() {
     } catch (e: any) {
       setError(e.message || "Failed to load emails")
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -226,67 +232,61 @@ export default function DashboardPage() {
 
               {/* Action panel */}
               {isExpanded && (
-                <div className="border-t border-slate-100 px-5 py-4 space-y-4">
-                  {/* Summarize */}
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Summarize</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {SUMMARY_OPTIONS.map(({ label, count }) => {
-                        const key = `${email.id}-${count}`
-                        const isLoading = summaryLoading === key
-                        const hasSummary = !!summaries[key]
-                        return (
-                          <button
-                            key={label}
-                            onClick={() => handleSummarize(email.id, email.threadId, count)}
-                            disabled={isLoading}
-                            className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-colors disabled:opacity-40 ${
-                              hasSummary
-                                ? "bg-blue-600 text-white border-blue-600"
-                                : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
-                            }`}
-                          >
-                            {isLoading ? "…" : label}
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    {/* Show whichever summary was most recently loaded */}
-                    {SUMMARY_OPTIONS.map(({ count }) => {
+                <div className="border-t border-slate-100 px-5 py-3 space-y-3">
+                  {/* Single-row controls */}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-xs text-slate-400 mr-1">Summarize</span>
+                    {SUMMARY_OPTIONS.map(({ label, count }) => {
                       const key = `${email.id}-${count}`
-                      return summaries[key] ? (
-                        <div key={key} className="mt-3 p-3 bg-slate-50 rounded-lg text-sm text-slate-700 leading-relaxed">
-                          {summaries[key]}
-                        </div>
-                      ) : null
-                    }).filter(Boolean).slice(-1)}
+                      const isLoading = summaryLoading === key
+                      const hasSummary = !!summaries[key]
+                      return (
+                        <button
+                          key={label}
+                          onClick={(e) => { e.stopPropagation(); handleSummarize(email.id, email.threadId, count) }}
+                          disabled={isLoading}
+                          className={`px-2 py-1 text-xs rounded border font-medium transition-colors disabled:opacity-40 ${
+                            hasSummary
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                          }`}
+                        >
+                          {isLoading ? "…" : label}
+                        </button>
+                      )
+                    })}
+
+                    <span className="text-slate-200 mx-1">|</span>
+                    <span className="text-xs text-slate-400 mr-1">Reply</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/compose?mode=reply&threadId=${email.threadId}&scope=latest`) }}
+                      className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                    >
+                      Latest
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/compose?mode=reply&threadId=${email.threadId}&scope=full`) }}
+                      className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                    >
+                      Full history
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/compose?mode=reply&threadId=${email.threadId}`) }}
+                      className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                    >
+                      Manual
+                    </button>
                   </div>
 
-                  {/* Draft reply */}
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Draft Reply</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => router.push(`/compose?mode=reply&threadId=${email.threadId}&scope=latest`)}
-                        className="px-3 py-1.5 text-xs rounded-lg border bg-white text-slate-600 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                      >
-                        Based on latest
-                      </button>
-                      <button
-                        onClick={() => router.push(`/compose?mode=reply&threadId=${email.threadId}&scope=full`)}
-                        className="px-3 py-1.5 text-xs rounded-lg border bg-white text-slate-600 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                      >
-                        Based on full history
-                      </button>
-                      <button
-                        onClick={() => router.push(`/compose?mode=reply&threadId=${email.threadId}`)}
-                        className="px-3 py-1.5 text-xs rounded-lg border bg-white text-slate-600 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                      >
-                        Write manually
-                      </button>
-                    </div>
-                  </div>
+                  {/* Summary output */}
+                  {SUMMARY_OPTIONS.map(({ count }) => {
+                    const key = `${email.id}-${count}`
+                    return summaries[key] ? (
+                      <div key={key} className="p-3 bg-slate-50 rounded-lg text-sm text-slate-700 leading-relaxed">
+                        {summaries[key]}
+                      </div>
+                    ) : null
+                  }).filter(Boolean).slice(-1)}
 
                   {/* Email body */}
                   <div className="border-t border-slate-100 pt-4">
