@@ -75,7 +75,12 @@ export default function DashboardPage() {
     if (!silent) setError("")
     try {
       const res = await fetch(`/api/emails${force ? "?force=true" : ""}`)
-      if (!res.ok) throw new Error(await res.text())
+      if (!res.ok) {
+        const body = await res.text()
+        let msg = "Failed to load emails"
+        try { msg = JSON.parse(body).error ?? msg } catch {}
+        throw new Error(msg)
+      }
       const data = await res.json()
       setEmails(data.emails)
       setCachedAt(data.cachedAt ?? null)

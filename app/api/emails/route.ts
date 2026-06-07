@@ -18,29 +18,41 @@ export async function GET(req: NextRequest) {
   const userEmail = session.user?.email ?? "unknown"
   const force = req.nextUrl.searchParams.get("force") === "true"
 
-  // Get current inbox IDs (lightweight — no body fetching)
-  const currentIds = await listEmailIds(session.accessToken, 40)
+  try {
+    const currentIds = await listEmailIds(session.accessToken, 40)
 
-  // Load cache (skip on force refresh)
-  const cacheData = force ? null : readCacheMap(userEmail)
-  const cachedEmails = cacheData ? { ...cacheData.emails } : {}
+    const cacheData = force ? null : readCacheMap(userEmail)
+    const cachedEmails = cacheData ? { ...cacheData.emails } : {}
 
-  // Find emails not yet categorized
-  const newIds = currentIds.filter((id) => !cachedEmails[id])
+    const newIds = currentIds.filter((id) => !cachedEmails[id])
 
-  if (newIds.length > 0) {
-    const newEmails = await fetchEmailsByIds(session.accessToken, newIds)
-    const existingCategories = [...new Set(Object.values(cachedEmails).map((e) => e.category))]
-    const newCategorized = await categorizeEmails(apiKey, newEmails, existingCategories)
-    for (const email of newCategorized) {
-      cachedEmails[email.id] = email
+    if (newIds.length > 0) {
+      const newEmails = await fetchEmailsByIds(session.accessToken, newIds)
+      const existingCategories = [...new Set(Object.values(cachedEmails).map((e) => e.category))]
+      const newCategorized = await categorizeEmails(apiKey, newEmails, existingCategories)
+      for (const email of newCategorized) {
+        cachedEmails[email.id] = email
+      }
+      writeCacheMap(userEmail, cachedEmails)
     }
-    writeCacheMap(userEmail, cachedEmails)
+
+    const emails = currentIds.map((id) => cachedEmails[id]).filter(Boolean)
+    const updatedAt = (newIds.length === 0 && cacheData) ? cacheData.updatedAt : new Date().toISOString()
+
+    return NextResponse.json({ emails, cachedAt: updatedAt, newCount: newIds.length })
+  } catch (err: any) {
+    console.error("[/api/emails]", err?.message ?? err)
+
+    // Fall back to whatever is in cache rather than showing an error
+    const cached = readCacheMap(userEmail)
+    if (cached && !force) {
+      const emails = Object.values(cached.emails)
+      return NextResponse.json({ emails, cachedAt: cached.updatedAt, newCount: 0 })
+    }
+
+    return NextResponse.json(
+      { error: err?.message || "Failed to load emails" },
+      { status: 500 }
+    )
   }
-
-  // Return emails in current inbox order
-  const emails = currentIds.map((id) => cachedEmails[id]).filter(Boolean)
-  const updatedAt = (newIds.length === 0 && cacheData) ? cacheData.updatedAt : new Date().toISOString()
-
-  return NextResponse.json({ emails, cachedAt: updatedAt, newCount: newIds.length })
 }
