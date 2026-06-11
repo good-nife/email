@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getThread, getSentEmails } from "@/lib/gmail"
 import { draftReply, draftNewEmail } from "@/lib/claude"
+import { readCacheMap } from "@/lib/cache"
+import { CategorizedThread } from "@/types"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { threadId, to, subject, context, scope } = body
+  const { threadId, to, subject, context, scope, category } = body
 
   const [sentEmails] = await Promise.all([getSentEmails(session.accessToken, 15)])
 
@@ -29,7 +31,15 @@ export async function POST(req: NextRequest) {
     }
     draft = await draftReply(apiKey, thread, sentEmails)
   } else {
-    draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails)
+    let categoryThreads: CategorizedThread[] = []
+    if (category) {
+      const userEmail = session.user?.email ?? "unknown"
+      const cacheData = readCacheMap<CategorizedThread>(userEmail)
+      if (cacheData) {
+        categoryThreads = Object.values(cacheData.emails).filter((t) => t.category === category)
+      }
+    }
+    draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads)
   }
 
   return NextResponse.json({ draft })

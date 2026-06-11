@@ -62,7 +62,16 @@ export default function DashboardPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [summaries, setSummaries] = useState<Record<string, string>>({})
   const [summaryLoading, setSummaryLoading] = useState<string | null>(null)
-  const [compose, setCompose] = useState<{ threadId: string; scope: string } | null>(null)
+  const [compose, setCompose] = useState<
+    | { mode: "reply"; threadId: string; scope: string }
+    | { mode: "new"; category?: string }
+    | null
+  >(null)
+
+  // In-place AI search within current category
+  const [categoryQuery, setCategoryQuery] = useState("")
+  const [categorySearchResult, setCategorySearchResult] = useState("")
+  const [categorySearchLoading, setCategorySearchLoading] = useState(false)
 
   // Sent folder
   const [folder, setFolder] = useState<"inbox" | "sent">("inbox")
@@ -119,6 +128,38 @@ export default function DashboardPage() {
     setFolder(f)
     setExpandedId(null)
     if (f === "sent" && sentEmails.length === 0) loadSent()
+  }
+
+  function setFilterAndReset(cat: string) {
+    setFilter(cat)
+    setCategoryQuery("")
+    setCategorySearchResult("")
+  }
+
+  async function handleCategorySearch(e: React.FormEvent) {
+    e.preventDefault()
+    if (!categoryQuery.trim()) return
+    setCategorySearchLoading(true)
+    setCategorySearchResult("")
+    try {
+      const res = await fetch("/api/category-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: filter, query: categoryQuery }),
+      })
+      if (!res.ok) {
+        const body = await res.text()
+        let msg = "Search failed"
+        try { msg = JSON.parse(body).error ?? msg } catch {}
+        throw new Error(msg)
+      }
+      const data = await res.json()
+      setCategorySearchResult(data.summary)
+    } catch (e: any) {
+      setCategorySearchResult(`Error: ${e.message}`)
+    } finally {
+      setCategorySearchLoading(false)
+    }
   }
 
   async function handleSummarize(threadId: string, count: number | "all") {
@@ -180,13 +221,21 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Compose */}
+          <button
+            onClick={() => setCompose({ mode: "new", category: filter !== "All" ? filter : undefined })}
+            className="w-full mb-3 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
+          >
+            <span>✏️</span> Compose
+          </button>
+
           {/* Category list — inbox only */}
           {folder === "inbox" && (
             <nav className="space-y-0.5 flex-1 overflow-y-auto">
               {(["All", ...uniqueCategories] as string[]).map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setFilter(cat)}
+                  onClick={() => setFilterAndReset(cat)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${
                     filter === cat
                       ? "bg-blue-50 text-blue-700 font-medium"
@@ -225,6 +274,45 @@ export default function DashboardPage() {
             <div className="text-3xl mb-3">⏳</div>
             <p>Loading and categorizing your conversations…</p>
             <p className="text-sm mt-1">First load takes about 15 seconds</p>
+          </div>
+        )}
+
+        {/* In-place AI search */}
+        {folder === "inbox" && threads.length > 0 && (
+          <div className="max-w-3xl mb-4">
+            <form onSubmit={handleCategorySearch} className="flex gap-2">
+              <input
+                value={categoryQuery}
+                onChange={(e) => setCategoryQuery(e.target.value)}
+                placeholder={`✨ Ask AI about your ${filter === "All" ? "inbox" : filter} emails…`}
+                className="flex-1 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                disabled={categorySearchLoading || !categoryQuery.trim()}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                {categorySearchLoading ? "…" : "Ask"}
+              </button>
+            </form>
+
+            {categorySearchResult && (
+              <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600">✨</span>
+                    <h2 className="font-semibold text-blue-900 text-sm">AI Search</h2>
+                  </div>
+                  <button
+                    onClick={() => setCategorySearchResult("")}
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{categorySearchResult}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -326,19 +414,19 @@ export default function DashboardPage() {
                         <span className="text-slate-200 mx-1">|</span>
                         <span className="text-xs text-slate-400 mr-1">Reply</span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ threadId: thread.id, scope: "latest" }) }}
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest" }) }}
                           className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Latest
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ threadId: thread.id, scope: "full" }) }}
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full" }) }}
                           className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Full history
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ threadId: thread.id, scope: "none" }) }}
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none" }) }}
                           className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Manual
@@ -438,8 +526,10 @@ export default function DashboardPage() {
 
       {compose && (
         <ComposePanel
-          threadId={compose.threadId}
-          scope={compose.scope === "none" ? undefined : compose.scope}
+          threadId={compose.mode === "reply" ? compose.threadId : undefined}
+          scope={compose.mode === "reply" && compose.scope !== "none" ? compose.scope : undefined}
+          categories={compose.mode === "new" ? uniqueCategories : []}
+          defaultCategory={compose.mode === "new" ? compose.category : undefined}
           onClose={() => setCompose(null)}
           onSent={() => setCompose(null)}
         />

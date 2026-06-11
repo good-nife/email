@@ -155,7 +155,8 @@ export async function draftNewEmail(
   to: string,
   subject: string,
   context: string,
-  sentEmails: Email[]
+  sentEmails: Email[],
+  categoryThreads: Thread[] = []
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -164,6 +165,11 @@ export async function draftNewEmail(
     .slice(0, 8)
     .map((e) => `---\n${e.body.trim()}`)
     .join("\n")
+
+  const categoryContext = categoryThreads
+    .slice(0, 8)
+    .map((t) => `Subject: ${t.subject}\nPreview: ${(t.snippet || t.messages[0]?.body.trim() || "").slice(0, 200)}`)
+    .join("\n\n")
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
@@ -174,7 +180,7 @@ export async function draftNewEmail(
         content: `You are helping someone write an email. Study their writing style from these past emails they sent:
 
 ${voiceSamples}
-
+${categoryContext ? `\nFor topical context, here are some recent related emails:\n${categoryContext}\n` : ""}
 Write a new email with:
 - To: ${to}
 - Subject: ${subject}
@@ -255,6 +261,44 @@ Request: ${naturalLanguageQuery}`,
   })
 
   return message.content[0].type === "text" ? message.content[0].text.trim() : naturalLanguageQuery
+}
+
+export async function searchCategoryThreads(
+  apiKey: string,
+  threads: Thread[],
+  query: string
+): Promise<string> {
+  const client = getClient(apiKey)
+
+  const threadSummaries = threads
+    .slice(0, 20)
+    .map((t) => {
+      const msgs = t.messages
+        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 300)}`)
+        .join("\n")
+      return `Subject: ${t.subject}\n${msgs}`
+    })
+    .join("\n\n===\n\n")
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    messages: [
+      {
+        role: "user",
+        content: `The user is searching within a set of their email conversations for: "${query}"
+
+Based on the email threads below, write a helpful response: surface the most relevant conversations, answer any question that was asked, and summarize the key information related to the request. If nothing matches, say so plainly.
+
+Email threads:
+${threadSummaries}
+
+Write a clear, concise response in plain prose (1-4 paragraphs).`,
+      },
+    ],
+  })
+
+  return message.content[0].type === "text" ? message.content[0].text : ""
 }
 
 export async function summarizeCorrespondence(

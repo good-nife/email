@@ -11,6 +11,26 @@ function decodeBase64(data: string): string {
   return Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8")
 }
 
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
 function extractBody(payload: any): string {
   if (!payload) return ""
 
@@ -19,10 +39,7 @@ function extractBody(payload: any): string {
   }
 
   if (payload.mimeType === "text/html" && payload.body?.data) {
-    return decodeBase64(payload.body.data)
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
+    return htmlToText(decodeBase64(payload.body.data))
   }
 
   if (payload.parts) {
@@ -30,11 +47,7 @@ function extractBody(payload: any): string {
     if (plain?.body?.data) return decodeBase64(plain.body.data)
 
     const html = payload.parts.find((p: any) => p.mimeType === "text/html")
-    if (html?.body?.data)
-      return decodeBase64(html.body.data)
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
+    if (html?.body?.data) return htmlToText(decodeBase64(html.body.data))
 
     for (const part of payload.parts) {
       const body = extractBody(part)
