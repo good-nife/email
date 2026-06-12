@@ -281,7 +281,7 @@ export async function searchCategoryThreads(
     .slice(0, 20)
     .map((t) => {
       const msgs = t.messages
-        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 300)}`)
+        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 3000)}`)
         .join("\n")
       return `Subject: ${t.subject}\n${msgs}`
     })
@@ -319,7 +319,7 @@ export async function summarizeCorrespondence(
     .slice(0, 10)
     .map((t) => {
       const msgs = t.messages
-        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 300)}`)
+        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 3000)}`)
         .join("\n")
       return `Subject: ${t.subject}\n${msgs}`
     })
