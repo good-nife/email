@@ -21,6 +21,15 @@ export async function POST(req: NextRequest) {
 
   const [sentEmails] = await Promise.all([getSentEmails(session.accessToken, 15)])
 
+  let categoryThreads: CategorizedThread[] = []
+  if (category) {
+    const userEmail = session.user?.email ?? "unknown"
+    const cacheData = readCacheMap<CategorizedThread>(userEmail)
+    if (cacheData) {
+      categoryThreads = Object.values(cacheData.emails).filter((t) => t.category === category)
+    }
+  }
+
   let draft: string
 
   if (threadId) {
@@ -29,16 +38,8 @@ export async function POST(req: NextRequest) {
     if (scope === "latest") {
       thread = { ...thread, messages: thread.messages.slice(-1) }
     }
-    draft = await draftReply(apiKey, thread, sentEmails)
+    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads)
   } else {
-    let categoryThreads: CategorizedThread[] = []
-    if (category) {
-      const userEmail = session.user?.email ?? "unknown"
-      const cacheData = readCacheMap<CategorizedThread>(userEmail)
-      if (cacheData) {
-        categoryThreads = Object.values(cacheData.emails).filter((t) => t.category === category)
-      }
-    }
     draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads)
   }
 

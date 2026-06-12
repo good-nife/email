@@ -7,7 +7,6 @@ import type { User } from "next-auth"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Inbox" },
-  { href: "/compose", label: "Compose" },
   { href: "/search", label: "Search" },
   { href: "/settings", label: "Settings" },
 ]

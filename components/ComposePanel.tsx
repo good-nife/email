@@ -54,7 +54,7 @@ export default function ComposePanel({ threadId, scope = "full", categories = []
       const res = await fetch("/api/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(threadId ? { threadId, scope } : { to, subject, category: category || undefined }),
+        body: JSON.stringify(threadId ? { threadId, scope, category: category || undefined } : { to, subject, category: category || undefined }),
       })
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
@@ -146,7 +146,7 @@ export default function ComposePanel({ threadId, scope = "full", categories = []
                 className="flex-1 text-sm text-slate-900 outline-none placeholder:text-slate-300 font-medium"
               />
             </div>
-            {!threadId && categories.length > 0 && (
+            {categories.length > 0 && (
               <div className="flex items-center px-4 py-2.5 border-t border-slate-100">
                 <span className="text-xs text-slate-400 w-14 shrink-0">Context</span>
                 <select

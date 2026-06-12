@@ -63,7 +63,7 @@ export default function DashboardPage() {
   const [summaries, setSummaries] = useState<Record<string, string>>({})
   const [summaryLoading, setSummaryLoading] = useState<string | null>(null)
   const [compose, setCompose] = useState<
-    | { mode: "reply"; threadId: string; scope: string }
+    | { mode: "reply"; threadId: string; scope: string; category?: string }
     | { mode: "new"; category?: string }
     | null
   >(null)
@@ -414,19 +414,19 @@ export default function DashboardPage() {
                         <span className="text-slate-200 mx-1">|</span>
                         <span className="text-xs text-slate-400 mr-1">Reply</span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest" }) }}
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest", category: thread.category }) }}
                           className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Latest
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full" }) }}
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full", category: thread.category }) }}
                           className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Full history
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none" }) }}
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none", category: thread.category }) }}
                           className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Manual
@@ -528,8 +528,8 @@ export default function DashboardPage() {
         <ComposePanel
           threadId={compose.mode === "reply" ? compose.threadId : undefined}
           scope={compose.mode === "reply" && compose.scope !== "none" ? compose.scope : undefined}
-          categories={compose.mode === "new" ? uniqueCategories : []}
-          defaultCategory={compose.mode === "new" ? compose.category : undefined}
+          categories={uniqueCategories}
+          defaultCategory={compose.category}
           onClose={() => setCompose(null)}
           onSent={() => setCompose(null)}
         />

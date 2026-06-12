@@ -115,7 +115,8 @@ Reply with JSON only, no explanation:
 export async function draftReply(
   apiKey: string,
   thread: Thread,
-  sentEmails: Email[]
+  sentEmails: Email[],
+  categoryThreads: Thread[] = []
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -129,6 +130,12 @@ export async function draftReply(
     .map((m) => `From: ${m.from}\n${m.body.trim()}`)
     .join("\n\n---\n\n")
 
+  const categoryContext = categoryThreads
+    .filter((t) => t.id !== thread.id)
+    .slice(0, 8)
+    .map((t) => `Subject: ${t.subject}\nPreview: ${(t.snippet || t.messages[0]?.body.trim() || "").slice(0, 200)}`)
+    .join("\n\n")
+
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 1024,
@@ -138,7 +145,7 @@ export async function draftReply(
         content: `You are helping someone write an email reply. Study their writing style from these past emails they sent:
 
 ${voiceSamples}
-
+${categoryContext ? `\nFor additional context, here are some other related emails:\n${categoryContext}\n` : ""}
 Now write a reply to this email thread. Match their tone, length, and style exactly — use similar greetings, sign-offs, and phrasing patterns. Only return the email body text, no subject line.
 
 Thread to reply to:
