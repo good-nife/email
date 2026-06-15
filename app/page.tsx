@@ -10,7 +10,7 @@ export default async function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50 flex items-center justify-center p-6">
       <div className="max-w-md w-full text-center">
         <div className="text-6xl mb-6">✉</div>
-        <h1 className="text-4xl font-bold text-slate-900 mb-3">Mail Assistant</h1>
+        <h1 className="text-4xl font-bold text-slate-900 mb-3">Clario</h1>
         <p className="text-slate-500 text-lg mb-8 leading-relaxed">
           Categorize your inbox, draft emails in your voice, and summarize your
           conversations — all powered by AI.

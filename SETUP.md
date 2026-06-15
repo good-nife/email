@@ -1,4 +1,4 @@
-# Mail Assistant — Setup Guide
+# Clario — Setup Guide
 
 ## What you need
 
@@ -14,7 +14,7 @@
 2. Create a new project (or pick an existing one)
 3. Go to **APIs & Services → Library**, search for **Gmail API**, click it, and click **Enable**
 4. Go to **APIs & Services → OAuth consent screen**
-   - Choose **External** → fill in App name (e.g. "Mail Assistant"), your email, and save
+   - Choose **External** → fill in App name (e.g. "Clario"), your email, and save
    - Under **Scopes**, add:
      - `gmail.readonly`
      - `gmail.send`

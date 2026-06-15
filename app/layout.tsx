@@ -8,7 +8,7 @@ import { auth } from "@/auth"
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Mail Assistant",
+  title: "Clario",
   description: "AI-powered email assistant",
 }
 
