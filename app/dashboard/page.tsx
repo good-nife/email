@@ -17,6 +17,19 @@ const COLOR_POOL = [
   "bg-teal-100 text-teal-700",
 ]
 
+const DOT_COLOR_POOL = [
+  "bg-blue-500",
+  "bg-purple-500",
+  "bg-green-500",
+  "bg-yellow-500",
+  "bg-orange-500",
+  "bg-pink-500",
+  "bg-cyan-500",
+  "bg-red-500",
+  "bg-indigo-500",
+  "bg-teal-500",
+]
+
 const SUMMARY_OPTIONS = [
   { label: "Latest", count: 1 },
   { label: "Last 5", count: 5 },
@@ -27,6 +40,11 @@ const SUMMARY_OPTIONS = [
 function categoryColor(category: string, allCategories: string[]) {
   const i = allCategories.indexOf(category)
   return COLOR_POOL[i % COLOR_POOL.length] ?? "bg-slate-100 text-slate-600"
+}
+
+function categoryDotColor(category: string, allCategories: string[]) {
+  const i = allCategories.indexOf(category)
+  return DOT_COLOR_POOL[i % DOT_COLOR_POOL.length] ?? "bg-slate-400"
 }
 
 function formatDate(dateStr: string) {
@@ -50,6 +68,14 @@ function timeAgo(iso: string) {
 function participantDisplay(participants: string[]) {
   if (participants.length <= 2) return participants.join(", ")
   return `${participants.slice(0, 2).join(", ")} +${participants.length - 2}`
+}
+
+function getInitials(name: string) {
+  const cleaned = name.replace(/<.*>/, "").trim().replace(/^(the|a|an)\s+/i, "")
+  const words = cleaned.split(/\s+/).filter(Boolean)
+  if (words.length === 0) return "?"
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
 }
 
 export default function DashboardPage() {
@@ -192,7 +218,7 @@ export default function DashboardPage() {
   return (
     <div className="flex gap-0 min-h-screen">
       {/* Sidebar */}
-      <aside className="w-52 shrink-0 border-r border-slate-200 bg-white">
+      <aside className="w-52 shrink-0 border-r border-primary-200 bg-primary-100">
         <div className="sticky top-16 p-4 flex flex-col h-[calc(100vh-4rem)]">
           <div className="flex items-center justify-between mb-1">
             <h1 className="text-lg font-bold text-slate-900">
@@ -202,7 +228,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => loadThreads(true)}
                 disabled={loading}
-                className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40 transition-colors"
+                className="text-xs text-primary-600 hover:text-primary-800 disabled:opacity-40 transition-colors"
               >
                 {loading ? "…" : "Refresh"}
               </button>
@@ -211,7 +237,13 @@ export default function DashboardPage() {
 
           {folder === "inbox" && cachedAt && !loading && (
             <p className="text-xs text-slate-400 mb-3">
-              {newCount > 0 ? `${newCount} new · updated ${timeAgo(cachedAt)}` : `Updated ${timeAgo(cachedAt)}`}
+              {newCount > 0 ? (
+                <>
+                  <span className="text-coral-500 font-medium">{newCount} new</span> · updated {timeAgo(cachedAt)}
+                </>
+              ) : (
+                `Updated ${timeAgo(cachedAt)}`
+              )}
             </p>
           )}
 
@@ -224,7 +256,7 @@ export default function DashboardPage() {
           {/* Compose */}
           <button
             onClick={() => setCompose({ mode: "new", category: filter !== "All" ? filter : undefined })}
-            className="w-full mb-3 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
+            className="w-full mb-3 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-1.5"
           >
             <span>✏️</span> Compose
           </button>
@@ -238,12 +270,17 @@ export default function DashboardPage() {
                   onClick={() => setFilterAndReset(cat)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${
                     filter === cat
-                      ? "bg-blue-50 text-blue-700 font-medium"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      ? "bg-primary-50 text-primary-700 font-medium"
+                      : "text-slate-600 hover:bg-primary-50 hover:text-primary-700"
                   }`}
                 >
-                  <span className="truncate">{cat}</span>
-                  <span className={`text-xs ml-1 shrink-0 ${filter === cat ? "text-blue-500" : "text-slate-400"}`}>
+                  <span className="flex items-center gap-2 min-w-0">
+                    {cat !== "All" && (
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${categoryDotColor(cat, uniqueCategories)}`} />
+                    )}
+                    <span className="truncate">{cat}</span>
+                  </span>
+                  <span className={`text-xs ml-1 shrink-0 ${filter === cat ? "text-primary-500" : "text-slate-400"}`}>
                     {cat === "All" ? threads.length : counts[cat]}
                   </span>
                 </button>
@@ -257,8 +294,8 @@ export default function DashboardPage() {
               onClick={() => switchFolder(folder === "sent" ? "inbox" : "sent")}
               className={`w-full flex items-center px-3 py-2 rounded-lg text-sm transition-colors text-left ${
                 folder === "sent"
-                  ? "bg-blue-50 text-blue-700 font-medium"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-primary-50 text-primary-700 font-medium"
+                  : "text-slate-600 hover:bg-primary-50 hover:text-primary-700"
               }`}
             >
               {folder === "sent" ? "← Inbox" : "Sent"}
@@ -279,29 +316,29 @@ export default function DashboardPage() {
 
         {/* In-place AI search */}
         {folder === "inbox" && threads.length > 0 && (
-          <div className="max-w-3xl mb-4">
+          <div className="mb-4">
             <form onSubmit={handleCategorySearch} className="flex gap-2">
               <input
                 value={categoryQuery}
                 onChange={(e) => setCategoryQuery(e.target.value)}
                 placeholder={`✨ Ask AI about your ${filter === "All" ? "inbox" : filter} emails…`}
-                className="flex-1 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-4 py-2.5 bg-white border border-primary-200 rounded-full text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
               <button
                 type="submit"
                 disabled={categorySearchLoading || !categoryQuery.trim()}
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors"
+                className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-full transition-colors"
               >
                 {categorySearchLoading ? "…" : "Ask"}
               </button>
             </form>
 
             {categorySearchResult && (
-              <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="mt-3 bg-white border border-primary-100 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-blue-600">✨</span>
-                    <h2 className="font-semibold text-blue-900 text-sm">AI Search</h2>
+                    <span className="text-coral-500">✨</span>
+                    <h2 className="font-semibold text-primary-900 text-sm">AI Search</h2>
                   </div>
                   <button
                     onClick={() => setCategorySearchResult("")}
@@ -318,14 +355,14 @@ export default function DashboardPage() {
 
         {/* Inbox thread list */}
         {folder === "inbox" && (
-          <div className="space-y-1.5 max-w-3xl">
+          <div className="space-y-1.5">
             {filtered.map((thread) => {
               const isExpanded = expandedId === thread.id
               return (
                 <div
                   key={thread.id}
                   className={`bg-white rounded-xl border transition-shadow ${
-                    !thread.isRead ? "border-blue-200" : "border-slate-200"
+                    !thread.isRead ? "border-primary-200" : "border-slate-200"
                   } ${isExpanded ? "shadow-sm" : ""}`}
                 >
                   {/* Thread header */}
@@ -337,8 +374,13 @@ export default function DashboardPage() {
                       {/* Unread dot */}
                       <div className="mt-1.5 shrink-0">
                         {!thread.isRead
-                          ? <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          ? <div className="w-2 h-2 rounded-full bg-coral-500" />
                           : <div className="w-2 h-2" />}
+                      </div>
+
+                      {/* Avatar */}
+                      <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold flex items-center justify-center shrink-0">
+                        {getInitials(thread.participants[0] ?? "?")}
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -401,9 +443,9 @@ export default function DashboardPage() {
                               key={label}
                               onClick={(e) => { e.stopPropagation(); handleSummarize(thread.id, count) }}
                               disabled={isLoading}
-                              className={`px-2 py-1 text-xs rounded border font-medium transition-colors disabled:opacity-40 ${
+                              className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors disabled:opacity-40 ${
                                 hasSummary
-                                  ? "bg-blue-600 text-white border-blue-600"
+                                  ? "bg-primary-600 text-white border-primary-600"
                                   : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
                               }`}
                             >
@@ -415,19 +457,19 @@ export default function DashboardPage() {
                         <span className="text-xs text-slate-400 mr-1">Reply</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest", category: thread.category }) }}
-                          className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Latest
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full", category: thread.category }) }}
-                          className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Full history
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none", category: thread.category }) }}
-                          className="px-2 py-1 text-xs rounded border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Manual
                         </button>
@@ -437,7 +479,7 @@ export default function DashboardPage() {
                       {SUMMARY_OPTIONS.map(({ count }) => {
                         const key = `${thread.id}-${count}`
                         return summaries[key] ? (
-                          <div key={key} className="px-5 py-3 bg-blue-50 border-b border-blue-100 text-sm text-slate-700 leading-relaxed">
+                          <div key={key} className="px-5 py-3 bg-primary-50 border-b border-primary-100 text-sm text-slate-700 leading-relaxed">
                             {summaries[key]}
                           </div>
                         ) : null
@@ -473,7 +515,7 @@ export default function DashboardPage() {
 
         {/* Sent folder */}
         {folder === "sent" && (
-          <div className="max-w-3xl">
+          <div>
             {sentLoading && (
               <div className="text-center py-20 text-slate-400">
                 <div className="text-3xl mb-3">⏳</div>

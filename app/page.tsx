@@ -7,7 +7,7 @@ export default async function HomePage() {
   if (session) redirect("/dashboard")
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50 flex items-center justify-center p-6">
       <div className="max-w-md w-full text-center">
         <div className="text-6xl mb-6">✉</div>
         <h1 className="text-4xl font-bold text-slate-900 mb-3">Mail Assistant</h1>

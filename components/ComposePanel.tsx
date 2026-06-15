@@ -218,14 +218,14 @@ export default function ComposePanel({ threadId, scope = "full", categories = []
             <button
               onClick={handleSend}
               disabled={sending || sent}
-              className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-full transition-colors"
+              className="px-5 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-full transition-colors"
             >
               {sending ? "Sending…" : sent ? "Sent!" : "Send"}
             </button>
             <button
               onClick={handleDraft}
               disabled={loadingDraft}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 disabled:opacity-40 rounded-full transition-colors"
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-coral-50 hover:text-coral-600 disabled:opacity-40 rounded-full transition-colors"
             >
               {loadingDraft ? "Writing…" : "✨ AI Draft"}
             </button>

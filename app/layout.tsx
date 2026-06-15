@@ -17,7 +17,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className={`${geist.variable} h-full antialiased`}>
-      <body className="min-h-full bg-slate-50 text-slate-900 font-sans">
+      <body className="min-h-full bg-primary-50 text-slate-900 font-sans">
         <SessionProvider session={session}>
           {session && <NavBar user={session.user} />}
           <main className={session ? "pt-16 min-h-screen" : "min-h-screen"}>
