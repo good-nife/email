@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { CategorizedThread, Email } from "@/types"
 import ComposePanel from "@/components/ComposePanel"
+import { useResizableSidebar } from "@/lib/useResizableSidebar"
 
 const COLOR_POOL = [
   "bg-blue-100 text-blue-700",
@@ -31,10 +32,10 @@ const DOT_COLOR_POOL = [
 ]
 
 const SUMMARY_OPTIONS = [
-  { label: "Latest", count: 1 },
-  { label: "Last 5", count: 5 },
-  { label: "Last 10", count: 10 },
-  { label: "All", count: "all" as const },
+  { label: "Latest", count: 1, title: "Summarize the most recent message in this conversation" },
+  { label: "Last 5", count: 5, title: "Summarize the last 5 messages in this conversation" },
+  { label: "Last 10", count: 10, title: "Summarize the last 10 messages in this conversation" },
+  { label: "All", count: "all" as const, title: "Summarize every message in this conversation" },
 ]
 
 function categoryColor(category: string, allCategories: string[]) {
@@ -104,6 +105,10 @@ export default function DashboardPage() {
   const [sentEmails, setSentEmails] = useState<Email[]>([])
   const [sentLoading, setSentLoading] = useState(false)
 
+  // Category rename
+  const [editingCategory, setEditingCategory] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+
   useEffect(() => {
     loadThreads(false)
 
@@ -162,6 +167,24 @@ export default function DashboardPage() {
     setCategorySearchResult("")
   }
 
+  async function renameCategory(oldName: string) {
+    const newName = editValue.trim()
+    setEditingCategory(null)
+    if (!newName || newName === oldName) return
+    try {
+      const res = await fetch("/api/categories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName, newName }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setThreads((prev) => prev.map((t) => (t.category === oldName ? { ...t, category: newName } : t)))
+      if (filter === oldName) setFilter(newName)
+    } catch {
+      // leave category as-is on failure
+    }
+  }
+
   async function handleCategorySearch(e: React.FormEvent) {
     e.preventDefault()
     if (!categoryQuery.trim()) return
@@ -214,11 +237,16 @@ export default function DashboardPage() {
     return acc
   }, {})
   const uniqueCategories = [...new Set(threads.map((t) => t.category))]
+  const { width: sidebarWidth, startResize } = useResizableSidebar("sidebar-width", 208)
 
   return (
     <div className="flex gap-0 min-h-screen">
       {/* Sidebar */}
-      <aside className="w-52 shrink-0 border-r border-primary-200 bg-primary-100">
+      <aside className="relative shrink-0 border-r border-primary-200 bg-primary-100" style={{ width: sidebarWidth }}>
+        <div
+          onMouseDown={startResize}
+          className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-primary-300 active:bg-primary-400 transition-colors z-10"
+        />
         <div className="sticky top-16 p-4 flex flex-col h-[calc(100vh-4rem)]">
           <div className="flex items-center justify-between mb-1">
             <h1 className="text-lg font-bold text-slate-900">
@@ -264,27 +292,53 @@ export default function DashboardPage() {
           {/* Category list — inbox only */}
           {folder === "inbox" && (
             <nav className="space-y-0.5 flex-1 overflow-y-auto">
-              {(["All", ...uniqueCategories] as string[]).map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterAndReset(cat)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-                    filter === cat
-                      ? "bg-primary-50 text-primary-700 font-medium"
-                      : "text-slate-600 hover:bg-primary-50 hover:text-primary-700"
-                  }`}
-                >
-                  <span className="flex items-center gap-2 min-w-0">
-                    {cat !== "All" && (
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${categoryDotColor(cat, uniqueCategories)}`} />
-                    )}
-                    <span className="truncate">{cat}</span>
-                  </span>
-                  <span className={`text-xs ml-1 shrink-0 ${filter === cat ? "text-primary-500" : "text-slate-400"}`}>
-                    {cat === "All" ? threads.length : counts[cat]}
-                  </span>
-                </button>
-              ))}
+              {(["All", ...uniqueCategories] as string[]).map((cat) =>
+                editingCategory === cat ? (
+                  <input
+                    key={cat}
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => renameCategory(cat)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") renameCategory(cat)
+                      if (e.key === "Escape") setEditingCategory(null)
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-white border border-primary-300 text-slate-900 outline-none"
+                  />
+                ) : (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterAndReset(cat)}
+                    className={`group w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                      filter === cat
+                        ? "bg-primary-50 text-primary-700 font-medium"
+                        : "text-slate-600 hover:bg-primary-50 hover:text-primary-700"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      {cat !== "All" && (
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${categoryDotColor(cat, uniqueCategories)}`} />
+                      )}
+                      <span className="truncate">{cat}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {cat !== "All" && (
+                        <span
+                          onClick={(e) => { e.stopPropagation(); setEditingCategory(cat); setEditValue(cat) }}
+                          title="Rename category"
+                          className="opacity-0 group-hover:opacity-100 text-xs text-slate-400 hover:text-primary-600 transition-opacity"
+                        >
+                          ✏️
+                        </span>
+                      )}
+                      <span className={`text-xs ${filter === cat ? "text-primary-500" : "text-slate-400"}`}>
+                        {cat === "All" ? threads.length : counts[cat]}
+                      </span>
+                    </span>
+                  </button>
+                )
+              )}
             </nav>
           )}
 
@@ -433,8 +487,8 @@ export default function DashboardPage() {
                     <div className="border-t border-slate-100">
                       {/* Action controls */}
                       <div className="px-5 py-2.5 flex items-center gap-1 flex-wrap border-b border-slate-100 bg-slate-50/60">
-                        <span className="text-xs text-slate-400 mr-1">Summarize</span>
-                        {SUMMARY_OPTIONS.map(({ label, count }) => {
+                        <span className="text-xs text-slate-400 mr-1" title="Summarize messages within this conversation">Summarize</span>
+                        {SUMMARY_OPTIONS.map(({ label, count, title }) => {
                           const key = `${thread.id}-${count}`
                           const isLoading = summaryLoading === key
                           const hasSummary = !!summaries[key]
@@ -443,6 +497,7 @@ export default function DashboardPage() {
                               key={label}
                               onClick={(e) => { e.stopPropagation(); handleSummarize(thread.id, count) }}
                               disabled={isLoading}
+                              title={title}
                               className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors disabled:opacity-40 ${
                                 hasSummary
                                   ? "bg-primary-600 text-white border-primary-600"
@@ -454,21 +509,24 @@ export default function DashboardPage() {
                           )
                         })}
                         <span className="text-slate-200 mx-1">|</span>
-                        <span className="text-xs text-slate-400 mr-1">Reply</span>
+                        <span className="text-xs text-slate-400 mr-1" title="Generate an AI reply draft, then edit and send">Reply</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest", category: thread.category }) }}
+                          title="AI draft based only on the most recent message"
                           className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Latest
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full", category: thread.category }) }}
+                          title="AI draft based on the entire conversation history"
                           className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Full history
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none", category: thread.category }) }}
+                          title="Start with a blank reply — write it yourself"
                           className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
                         >
                           Manual
@@ -569,7 +627,9 @@ export default function DashboardPage() {
       {compose && (
         <ComposePanel
           threadId={compose.mode === "reply" ? compose.threadId : undefined}
+          thread={compose.mode === "reply" ? threads.find((t) => t.id === compose.threadId) : undefined}
           scope={compose.mode === "reply" && compose.scope !== "none" ? compose.scope : undefined}
+          autoDraft={compose.mode === "reply" && compose.scope !== "none"}
           categories={uniqueCategories}
           defaultCategory={compose.category}
           onClose={() => setCompose(null)}

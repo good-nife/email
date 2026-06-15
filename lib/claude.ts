@@ -116,7 +116,8 @@ export async function draftReply(
   apiKey: string,
   thread: Thread,
   sentEmails: Email[],
-  categoryThreads: Thread[] = []
+  categoryThreads: Thread[] = [],
+  extraContext = ""
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -146,6 +147,7 @@ export async function draftReply(
 
 ${voiceSamples}
 ${categoryContext ? `\nFor additional context, here are some other related emails:\n${categoryContext}\n` : ""}
+${extraContext ? `\nThe user wants this reply to specifically cover: ${extraContext}\n` : ""}
 Now write a reply to this email thread. Match their tone, length, and style exactly — use similar greetings, sign-offs, and phrasing patterns. Only return the email body text, no subject line.
 
 Thread to reply to:
@@ -278,10 +280,10 @@ export async function searchCategoryThreads(
   const client = getClient(apiKey)
 
   const threadSummaries = threads
-    .slice(0, 20)
+    .slice(0, 40)
     .map((t) => {
       const msgs = t.messages
-        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 3000)}`)
+        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 20000)}`)
         .join("\n")
       return `Subject: ${t.subject}\n${msgs}`
     })
@@ -289,18 +291,18 @@ export async function searchCategoryThreads(
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [
       {
         role: "user",
         content: `The user is searching within a set of their email conversations for: "${query}"
 
-Based on the email threads below, write a helpful response: surface the most relevant conversations, answer any question that was asked, and summarize the key information related to the request. If nothing matches, say so plainly.
+Based on the email threads below, write a helpful response. If the request asks to find/filter/list conversations matching certain criteria (e.g. numeric thresholds, specific terms), go through the threads one by one, check each against every criterion, and list each match by name/subject along with the specific values or quotes that satisfy the criteria. If a thread doesn't have enough information to evaluate a criterion, note that rather than guessing. Otherwise, surface the most relevant conversations and answer any question that was asked. If nothing matches, say so plainly.
 
 Email threads:
 ${threadSummaries}
 
-Write a clear, concise response in plain prose (1-4 paragraphs).`,
+Write a clear response in plain prose, using a short list for multiple matches.`,
       },
     ],
   })

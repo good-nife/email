@@ -1,21 +1,25 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { Thread } from "@/types"
 
 interface ComposePanelProps {
   threadId?: string
+  thread?: Thread
   scope?: string
+  autoDraft?: boolean
   categories?: string[]
   defaultCategory?: string
   onClose: () => void
   onSent?: () => void
 }
 
-export default function ComposePanel({ threadId, scope = "full", categories = [], defaultCategory = "", onClose, onSent }: ComposePanelProps) {
+export default function ComposePanel({ threadId, thread, scope = "full", autoDraft = false, categories = [], defaultCategory = "", onClose, onSent }: ComposePanelProps) {
   const [minimized, setMinimized] = useState(false)
   const [to, setTo] = useState("")
   const [subject, setSubject] = useState("")
   const [category, setCategory] = useState(defaultCategory)
+  const [context, setContext] = useState("")
   const [loadingThread, setLoadingThread] = useState(false)
   const [loadingDraft, setLoadingDraft] = useState(false)
   const [sending, setSending] = useState(false)
@@ -24,7 +28,14 @@ export default function ComposePanel({ threadId, scope = "full", categories = []
   const bodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (threadId) loadThread()
+    if (!threadId) return
+    if (thread) {
+      setTo(thread.messages[0]?.fromEmail ?? "")
+      setSubject(`Re: ${thread.subject}`)
+    } else {
+      loadThread()
+    }
+    if (autoDraft) handleDraft()
   }, [threadId])
 
   async function loadThread() {
@@ -54,7 +65,11 @@ export default function ComposePanel({ threadId, scope = "full", categories = []
       const res = await fetch("/api/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(threadId ? { threadId, scope, category: category || undefined } : { to, subject, category: category || undefined }),
+        body: JSON.stringify(
+          threadId
+            ? { threadId, scope, category: category || undefined, context: context || undefined }
+            : { to, subject, category: category || undefined, context: context || undefined }
+        ),
       })
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
@@ -148,7 +163,7 @@ export default function ComposePanel({ threadId, scope = "full", categories = []
             </div>
             {categories.length > 0 && (
               <div className="flex items-center px-4 py-2.5 border-t border-slate-100">
-                <span className="text-xs text-slate-400 w-14 shrink-0">Context</span>
+                <span className="text-xs text-slate-400 w-14 shrink-0" title="Pulls in related emails from this category as extra context for the AI draft">Category</span>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
@@ -161,6 +176,15 @@ export default function ComposePanel({ threadId, scope = "full", categories = []
                 </select>
               </div>
             )}
+            <div className="flex items-center px-4 py-2.5 border-t border-slate-100">
+              <span className="text-xs text-slate-400 w-14 shrink-0">Context</span>
+              <input
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                placeholder="What should the AI cover? (optional)"
+                className="flex-1 text-sm text-slate-900 outline-none placeholder:text-slate-300"
+              />
+            </div>
           </div>
 
           {/* Formatting toolbar */}

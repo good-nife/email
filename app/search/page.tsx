@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Thread } from "@/types"
+import { useResizableSidebar } from "@/lib/useResizableSidebar"
 
 const HISTORY_KEY = "search_history"
 const MAX_HISTORY = 20
@@ -128,10 +129,16 @@ export default function SearchPage() {
     setActiveHistoryId(null)
   }
 
+  const { width: sidebarWidth, startResize } = useResizableSidebar("sidebar-width", 256)
+
   return (
     <div className="flex gap-0 min-h-screen">
       {/* Left sidebar — search history */}
-      <aside className="w-64 shrink-0 border-r border-primary-200 bg-primary-100">
+      <aside className="relative shrink-0 border-r border-primary-200 bg-primary-100" style={{ width: sidebarWidth }}>
+        <div
+          onMouseDown={startResize}
+          className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-primary-300 active:bg-primary-400 transition-colors z-10"
+        />
         <div className="sticky top-16 p-4 flex flex-col h-[calc(100vh-4rem)]">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-slate-700">Recent Searches</h2>
