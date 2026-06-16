@@ -10,6 +10,12 @@ export async function GET(req: NextRequest) {
   if (!session?.accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
+  if (session.error === "RefreshTokenError") {
+    return NextResponse.json(
+      { error: "Your Google session expired. Please sign out and sign back in." },
+      { status: 401 }
+    )
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {

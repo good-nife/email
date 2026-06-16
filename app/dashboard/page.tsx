@@ -126,7 +126,7 @@ export default function DashboardPage() {
       const res = await fetch(`/api/emails${force ? "?force=true" : ""}`)
       if (!res.ok) {
         const body = await res.text()
-        let msg = "Failed to load emails"
+        let msg = res.status === 401 ? "session-expired" : "Failed to load emails"
         try { msg = JSON.parse(body).error ?? msg } catch {}
         throw new Error(msg)
       }
@@ -277,7 +277,12 @@ export default function DashboardPage() {
 
           {error && folder === "inbox" && (
             <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-              {error}
+              {error === "session-expired" || error.toLowerCase().includes("session expired") ? (
+                <>Your Google session expired.{" "}
+                  <a href="/api/auth/signout" className="underline font-medium">Sign out and sign back in</a>
+                  {" "}to continue.
+                </>
+              ) : error}
             </div>
           )}
 
