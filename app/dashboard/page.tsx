@@ -7,28 +7,24 @@ import { useResizableSidebar } from "@/lib/useResizableSidebar"
 
 const COLOR_POOL = [
   "bg-blue-100 text-blue-700",
-  "bg-purple-100 text-purple-700",
-  "bg-green-100 text-green-700",
-  "bg-yellow-100 text-yellow-700",
-  "bg-orange-100 text-orange-700",
-  "bg-pink-100 text-pink-700",
+  "bg-sky-100 text-sky-700",
   "bg-cyan-100 text-cyan-700",
-  "bg-red-100 text-red-700",
-  "bg-indigo-100 text-indigo-700",
   "bg-teal-100 text-teal-700",
+  "bg-indigo-100 text-indigo-700",
+  "bg-violet-100 text-violet-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-slate-100 text-slate-600",
 ]
 
 const DOT_COLOR_POOL = [
   "bg-blue-500",
-  "bg-purple-500",
-  "bg-green-500",
-  "bg-yellow-500",
-  "bg-orange-500",
-  "bg-pink-500",
+  "bg-sky-500",
   "bg-cyan-500",
-  "bg-red-500",
-  "bg-indigo-500",
   "bg-teal-500",
+  "bg-indigo-500",
+  "bg-violet-500",
+  "bg-emerald-500",
+  "bg-slate-400",
 ]
 
 const SUMMARY_OPTIONS = [
@@ -240,409 +236,394 @@ export default function DashboardPage() {
   const { width: sidebarWidth, startResize } = useResizableSidebar("sidebar-width", 208)
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Sub-header preview bar */}
-      <div className="flex items-center justify-between px-5 py-1.5 bg-slate-100 border-b border-slate-200">
-        <span className="text-[10px] tracking-widest text-slate-400 font-medium uppercase">
-          Clario — Redesign Preview · 3 Directions
-        </span>
-        <div className="flex items-center gap-1">
-          {["Editorial", "Cozy", "Studio"].map((style, i) => (
+    <div className="flex gap-0 min-h-screen">
+      {/* Sidebar */}
+      <aside className="relative shrink-0 border-r border-primary-200 bg-primary-100" style={{ width: sidebarWidth }}>
+        <div
+          onMouseDown={startResize}
+          className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-primary-300 active:bg-primary-400 transition-colors z-10"
+        />
+        <div className="sticky top-16 p-4 flex flex-col h-[calc(100vh-4rem)]">
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-lg font-bold text-slate-900">
+              {folder === "sent" ? "Sent" : "Inbox"}
+            </h1>
+            {folder === "inbox" && (
+              <button
+                onClick={() => loadThreads(true)}
+                disabled={loading}
+                className="text-xs text-primary-600 hover:text-primary-800 disabled:opacity-40 transition-colors"
+              >
+                {loading ? "…" : "Refresh"}
+              </button>
+            )}
+          </div>
+
+          {folder === "inbox" && cachedAt && !loading && (
+            <p className="text-xs text-slate-400 mb-3">
+              {newCount > 0 ? (
+                <>
+                  <span className="text-coral-500 font-medium">{newCount} new</span> · updated {timeAgo(cachedAt)}
+                </>
+              ) : (
+                `Updated ${timeAgo(cachedAt)}`
+              )}
+            </p>
+          )}
+
+          {error && folder === "inbox" && (
+            <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              {error === "session-expired" || error.toLowerCase().includes("session expired") ? (
+                <>Your Google session expired.{" "}
+                  <a href="/api/auth/signout" className="underline font-medium">Sign out and sign back in</a>
+                  {" "}to continue.
+                </>
+              ) : error}
+            </div>
+          )}
+
+          {/* Compose */}
+          <button
+            onClick={() => setCompose({ mode: "new", category: filter !== "All" ? filter : undefined })}
+            className="w-full mb-3 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-1.5"
+          >
+            <span>✏️</span> Compose
+          </button>
+
+          {/* Category list — inbox only */}
+          {folder === "inbox" && (
+            <nav className="space-y-0.5 flex-1 overflow-y-auto">
+              {(["All", ...uniqueCategories] as string[]).map((cat) =>
+                editingCategory === cat ? (
+                  <input
+                    key={cat}
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => renameCategory(cat)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") renameCategory(cat)
+                      if (e.key === "Escape") setEditingCategory(null)
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-white border border-primary-300 text-slate-900 outline-none"
+                  />
+                ) : (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterAndReset(cat)}
+                    className={`group w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                      filter === cat
+                        ? "bg-primary-50 text-primary-700 font-medium"
+                        : "text-slate-600 hover:bg-primary-50 hover:text-primary-700"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      {cat !== "All" && (
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${categoryDotColor(cat, uniqueCategories)}`} />
+                      )}
+                      <span className="truncate">{cat}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {cat !== "All" && (
+                        <span
+                          onClick={(e) => { e.stopPropagation(); setEditingCategory(cat); setEditValue(cat) }}
+                          title="Rename category"
+                          className="opacity-0 group-hover:opacity-100 text-xs text-slate-400 hover:text-primary-600 transition-opacity"
+                        >
+                          ✏️
+                        </span>
+                      )}
+                      <span className={`text-xs ${filter === cat ? "text-primary-500" : "text-slate-400"}`}>
+                        {cat === "All" ? threads.length : counts[cat]}
+                      </span>
+                    </span>
+                  </button>
+                )
+              )}
+            </nav>
+          )}
+
+          {/* Sent button */}
+          <div className="mt-auto pt-3 border-t border-slate-100">
             <button
-              key={style}
-              className={`px-2.5 py-0.5 text-xs rounded border transition-colors ${
-                i === 0
-                  ? "border-slate-800 text-slate-800 bg-white font-medium"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+              onClick={() => switchFolder(folder === "sent" ? "inbox" : "sent")}
+              className={`w-full flex items-center px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                folder === "sent"
+                  ? "bg-primary-50 text-primary-700 font-medium"
+                  : "text-slate-600 hover:bg-primary-50 hover:text-primary-700"
               }`}
             >
-              {style}
+              {folder === "sent" ? "← Inbox" : "Sent"}
             </button>
-          ))}
+          </div>
         </div>
-      </div>
+      </aside>
 
-      <div className="flex flex-1 min-h-0">
-        {/* Sidebar */}
-        <aside className="relative shrink-0 border-r border-slate-200 bg-white" style={{ width: sidebarWidth }}>
-          <div
-            onMouseDown={startResize}
-            className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-slate-200 active:bg-slate-300 transition-colors z-10"
-          />
-          <div className="sticky top-[calc(3.5rem+2rem)] p-4 flex flex-col" style={{ height: "calc(100vh - 3.5rem - 2rem)" }}>
-            <div className="flex items-center justify-between mb-0.5">
-              <h1 className="text-base font-bold text-slate-900">
-                {folder === "sent" ? "Sent" : "Inbox"}
-              </h1>
-              {folder === "inbox" && (
-                <button
-                  onClick={() => loadThreads(true)}
-                  disabled={loading}
-                  className="text-xs text-primary-600 hover:text-primary-800 disabled:opacity-40 transition-colors"
-                >
-                  {loading ? "…" : "Refresh"}
-                </button>
-              )}
-            </div>
+      {/* Main */}
+      <main className="flex-1 min-w-0 px-6 py-6">
+        {loading && threads.length === 0 && (
+          <div className="text-center py-20 text-slate-400">
+            <div className="text-3xl mb-3">⏳</div>
+            <p>Loading and categorizing your conversations…</p>
+            <p className="text-sm mt-1">First load takes about 15 seconds</p>
+          </div>
+        )}
 
-            {folder === "inbox" && cachedAt && !loading && (
-              <p className="text-xs text-slate-400 mb-3">
-                {newCount > 0 ? (
-                  <>
-                    <span className="text-coral-500 font-medium">{newCount} new</span> · updated {timeAgo(cachedAt)}
-                  </>
-                ) : (
-                  `Updated ${timeAgo(cachedAt)}`
-                )}
-              </p>
-            )}
+        {/* In-place AI search */}
+        {folder === "inbox" && threads.length > 0 && (
+          <div className="mb-4">
+            <form onSubmit={handleCategorySearch} className="flex gap-2">
+              <input
+                value={categoryQuery}
+                onChange={(e) => setCategoryQuery(e.target.value)}
+                placeholder={`✦ Ask AI about your ${filter === "All" ? "inbox" : filter} emails…`}
+                className="flex-1 px-4 py-2.5 bg-white border border-primary-200 rounded-full text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                disabled={categorySearchLoading || !categoryQuery.trim()}
+                className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-full transition-colors"
+              >
+                {categorySearchLoading ? "…" : "Ask"}
+              </button>
+            </form>
 
-            {error && folder === "inbox" && (
-              <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-                {error === "session-expired" || error.toLowerCase().includes("session expired") ? (
-                  <>Your Google session expired.{" "}
-                    <a href="/api/auth/signout" className="underline font-medium">Sign out and sign back in</a>
-                    {" "}to continue.
-                  </>
-                ) : error}
+            {categorySearchResult && (
+              <div className="mt-3 bg-white border border-primary-100 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-coral-500">✦</span>
+                    <h2 className="font-semibold text-primary-900 text-sm">AI Search</h2>
+                  </div>
+                  <button
+                    onClick={() => setCategorySearchResult("")}
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{categorySearchResult}</p>
               </div>
             )}
+          </div>
+        )}
 
-            {/* Compose */}
-            <button
-              onClick={() => setCompose({ mode: "new", category: filter !== "All" ? filter : undefined })}
-              className="w-full mb-4 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
-            >
-              <span>✏</span> Compose
-            </button>
-
-            {/* Category list — inbox only */}
-            {folder === "inbox" && (
-              <nav className="space-y-0.5 flex-1 overflow-y-auto">
-                {(["All", ...uniqueCategories] as string[]).map((cat) =>
-                  editingCategory === cat ? (
-                    <input
-                      key={cat}
-                      autoFocus
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => renameCategory(cat)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") renameCategory(cat)
-                        if (e.key === "Escape") setEditingCategory(null)
-                      }}
-                      className="w-full px-2 py-1.5 rounded text-sm bg-white border border-primary-300 text-slate-900 outline-none"
-                    />
-                  ) : (
-                    <button
-                      key={cat}
-                      onClick={() => setFilterAndReset(cat)}
-                      className={`group w-full flex items-center justify-between px-2 py-1.5 rounded text-sm transition-colors text-left ${
-                        filter === cat
-                          ? "text-slate-900 font-medium"
-                          : "text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        {cat !== "All" && (
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${categoryDotColor(cat, uniqueCategories)}`} />
-                        )}
-                        <span className="truncate">{cat}</span>
-                      </span>
-                      <span className="flex items-center gap-1.5 shrink-0">
-                        {cat !== "All" && (
-                          <span
-                            onClick={(e) => { e.stopPropagation(); setEditingCategory(cat); setEditValue(cat) }}
-                            title="Rename category"
-                            className="opacity-0 group-hover:opacity-100 text-xs text-slate-400 hover:text-primary-600 transition-opacity"
-                          >
-                            ✏
-                          </span>
-                        )}
-                        <span className="text-xs text-slate-400">
-                          {cat === "All" ? threads.length : counts[cat]}
-                        </span>
-                      </span>
-                    </button>
-                  )
-                )}
-              </nav>
-            )}
-
-            {/* Mailboxes section */}
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <p className="text-[10px] tracking-widest text-slate-400 font-medium uppercase mb-1 px-2">Mailboxes</p>
-              {["Sent", "Drafts", "Archive"].map((box) => (
-                <button
-                  key={box}
-                  onClick={() => box === "Sent" ? switchFolder(folder === "sent" ? "inbox" : "sent") : undefined}
-                  className={`w-full flex items-center px-2 py-1.5 rounded text-sm transition-colors text-left ${
-                    (box === "Sent" && folder === "sent")
-                      ? "text-slate-900 font-medium"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
+        {/* Inbox thread list */}
+        {folder === "inbox" && (
+          <div className="space-y-1.5">
+            {filtered.map((thread) => {
+              const isExpanded = expandedId === thread.id
+              return (
+                <div
+                  key={thread.id}
+                  className={`bg-white rounded-xl border transition-shadow ${
+                    !thread.isRead ? "border-primary-200" : "border-slate-200"
+                  } ${isExpanded ? "shadow-sm" : ""}`}
                 >
-                  {box === "Sent" && folder === "sent" ? "← Inbox" : box}
-                </button>
+                  {/* Thread header */}
+                  <div
+                    className="px-5 py-3.5 cursor-pointer"
+                    onClick={() => setExpandedId(isExpanded ? null : thread.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Unread dot */}
+                      <div className="mt-1.5 shrink-0">
+                        {!thread.isRead
+                          ? <div className="w-2 h-2 rounded-full bg-coral-500" />
+                          : <div className="w-2 h-2" />}
+                      </div>
+
+                      {/* Avatar */}
+                      <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold flex items-center justify-center shrink-0">
+                        {getInitials(thread.participants[0] ?? "?")}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        {/* Participants + badges */}
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-sm truncate ${!thread.isRead ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+                            {participantDisplay(thread.participants)}
+                          </span>
+                          {thread.messageCount > 1 && (
+                            <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0 font-medium">
+                              {thread.messageCount}
+                            </span>
+                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${categoryColor(thread.category, uniqueCategories)}`}>
+                            {thread.category}
+                          </span>
+                        </div>
+
+                        {/* Subject */}
+                        <div className={`text-sm truncate ${!thread.isRead ? "font-medium text-slate-900" : "text-slate-600"}`}>
+                          {thread.subject}
+                        </div>
+
+                        {/* Snippet */}
+                        {!isExpanded && (
+                          <div className="text-xs text-slate-400 truncate mt-0.5">{thread.snippet}</div>
+                        )}
+
+                        {/* Tags */}
+                        {thread.tags?.length > 0 && (
+                          <div className="flex gap-1 flex-wrap mt-1.5">
+                            {thread.tags.map((tag) => (
+                              <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 font-mono">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2">
+                        <span className="text-xs text-slate-400">{formatDate(thread.lastDate)}</span>
+                        <span className={`text-slate-300 text-xs transition-transform ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded content */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-100">
+                      {/* Action controls */}
+                      <div className="px-5 py-2.5 flex items-center gap-1 flex-wrap border-b border-slate-100 bg-slate-50/60">
+                        <span className="text-xs text-slate-400 mr-1" title="Summarize messages within this conversation">Summarize</span>
+                        {SUMMARY_OPTIONS.map(({ label, count, title }) => {
+                          const key = `${thread.id}-${count}`
+                          const isLoading = summaryLoading === key
+                          const hasSummary = !!summaries[key]
+                          return (
+                            <button
+                              key={label}
+                              onClick={(e) => { e.stopPropagation(); handleSummarize(thread.id, count) }}
+                              disabled={isLoading}
+                              title={title}
+                              className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors disabled:opacity-40 ${
+                                hasSummary
+                                  ? "bg-primary-600 text-white border-primary-600"
+                                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                              }`}
+                            >
+                              {isLoading ? "…" : label}
+                            </button>
+                          )
+                        })}
+                        <span className="text-slate-200 mx-1">|</span>
+                        <span className="text-xs text-slate-400 mr-1" title="Generate an AI reply draft, then edit and send">Reply</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest", category: thread.category }) }}
+                          title="AI draft based only on the most recent message"
+                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                        >
+                          Latest
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full", category: thread.category }) }}
+                          title="AI draft based on the entire conversation history"
+                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                        >
+                          Full history
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none", category: thread.category }) }}
+                          title="Start with a blank reply — write it yourself"
+                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
+                        >
+                          Manual
+                        </button>
+                      </div>
+
+                      {/* Summary output */}
+                      {SUMMARY_OPTIONS.map(({ count }) => {
+                        const key = `${thread.id}-${count}`
+                        return summaries[key] ? (
+                          <div key={key} className="px-5 py-3 bg-primary-50 border-b border-primary-100 text-sm text-slate-700 leading-relaxed">
+                            {summaries[key]}
+                          </div>
+                        ) : null
+                      }).filter(Boolean).slice(-1)}
+
+                      {/* Messages */}
+                      <div className="divide-y divide-slate-50">
+                        {thread.messages.map((msg) => (
+                          <div key={msg.id} className="px-5 py-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-slate-700">{msg.from}</span>
+                              <span className="text-xs text-slate-400">{formatDate(msg.date)}</span>
+                            </div>
+                            <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+                              {msg.body || msg.snippet || "(no content)"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {!loading && filtered.length === 0 && threads.length > 0 && (
+              <div className="text-center py-12 text-slate-400">
+                <p>No conversations in this category.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sent folder */}
+        {folder === "sent" && (
+          <div>
+            {sentLoading && (
+              <div className="text-center py-20 text-slate-400">
+                <div className="text-3xl mb-3">⏳</div>
+                <p>Loading sent emails…</p>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              {sentEmails.map((email) => (
+                <div
+                  key={email.id}
+                  className={`bg-white rounded-xl border border-slate-200 cursor-pointer ${
+                    expandedId === email.id ? "shadow-sm" : ""
+                  }`}
+                  onClick={() => setExpandedId(expandedId === email.id ? null : email.id)}
+                >
+                  <div className="px-5 py-3.5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-slate-400 mb-0.5">To: {email.fromEmail}</div>
+                        <div className="text-sm font-medium text-slate-800 truncate">{email.subject}</div>
+                        {expandedId !== email.id && (
+                          <div className="text-xs text-slate-400 truncate mt-0.5">{email.snippet}</div>
+                        )}
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <span className="text-xs text-slate-400">{formatDate(email.date)}</span>
+                        <span className={`text-slate-300 text-xs transition-transform ${expandedId === email.id ? "rotate-180" : ""}`}>▼</span>
+                      </div>
+                    </div>
+                  </div>
+                  {expandedId === email.id && (
+                    <div className="border-t border-slate-100 px-5 py-4">
+                      <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
+                        {email.body || email.snippet || "(no content)"}
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
+              {!sentLoading && sentEmails.length === 0 && (
+                <div className="text-center py-20 text-slate-400">
+                  <div className="text-3xl mb-3">📤</div>
+                  <p>No sent emails found.</p>
+                </div>
+              )}
             </div>
           </div>
-        </aside>
-
-        {/* Main */}
-        <main className="flex-1 min-w-0 px-6 py-5">
-          {loading && threads.length === 0 && (
-            <div className="text-center py-20 text-slate-400">
-              <p className="text-sm">Loading and categorizing your conversations…</p>
-              <p className="text-xs mt-1">First load takes about 15 seconds</p>
-            </div>
-          )}
-
-          {/* In-place AI search */}
-          {folder === "inbox" && threads.length > 0 && (
-            <div className="mb-5">
-              <form onSubmit={handleCategorySearch} className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-400 shadow-sm">
-                  <span className="text-primary-500 shrink-0">✦</span>
-                  <input
-                    value={categoryQuery}
-                    onChange={(e) => setCategoryQuery(e.target.value)}
-                    placeholder={`Ask anything about your ${filter === "All" ? "inbox" : filter}…`}
-                    className="flex-1 bg-transparent outline-none text-slate-900 placeholder:text-slate-400"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={categorySearchLoading || !categoryQuery.trim()}
-                  className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors"
-                >
-                  {categorySearchLoading ? "…" : "Ask"}
-                </button>
-              </form>
-
-              {categorySearchResult && (
-                <div className="mt-3 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-primary-500">✦</span>
-                      <h2 className="font-semibold text-slate-900 text-sm">AI Answer</h2>
-                    </div>
-                    <button
-                      onClick={() => setCategorySearchResult("")}
-                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{categorySearchResult}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Inbox thread list */}
-          {folder === "inbox" && (
-            <div className="space-y-2">
-              {filtered.map((thread) => {
-                const isExpanded = expandedId === thread.id
-                return (
-                  <div
-                    key={thread.id}
-                    className={`bg-white rounded-2xl border border-slate-200 transition-shadow ${isExpanded ? "shadow-md" : "hover:shadow-sm"}`}
-                  >
-                    {/* Thread header */}
-                    <div
-                      className="px-5 py-4 cursor-pointer"
-                      onClick={() => setExpandedId(isExpanded ? null : thread.id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* Avatar */}
-                        <div className={`w-10 h-10 rounded-full text-sm font-semibold flex items-center justify-center shrink-0 ${categoryColor(thread.category, uniqueCategories)}`}>
-                          {getInitials(thread.participants[0] ?? "?")}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          {/* Participants + count + category */}
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className={`text-sm font-semibold truncate ${!thread.isRead ? "text-slate-900" : "text-slate-700"}`}>
-                              {participantDisplay(thread.participants)}
-                            </span>
-                            {thread.messageCount > 1 && (
-                              <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0 font-medium">
-                                {thread.messageCount}
-                              </span>
-                            )}
-                            <span className="flex items-center gap-1 text-xs text-slate-500 shrink-0">
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${categoryDotColor(thread.category, uniqueCategories)}`} />
-                              {thread.category}
-                            </span>
-                          </div>
-
-                          {/* Subject */}
-                          <div className={`text-base font-semibold truncate mb-1 ${!thread.isRead ? "text-slate-900" : "text-slate-800"}`}>
-                            {thread.subject}
-                          </div>
-
-                          {/* Snippet */}
-                          {!isExpanded && (
-                            <div className="text-sm text-slate-500 truncate">{thread.snippet}</div>
-                          )}
-
-                          {/* Tags */}
-                          {thread.tags?.length > 0 && (
-                            <div className="flex gap-1 flex-wrap mt-2">
-                              {thread.tags.map((tag) => (
-                                <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="shrink-0 text-xs text-slate-400 pt-0.5">
-                          {formatDate(thread.lastDate)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Expanded content */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-100">
-                        {/* Action controls */}
-                        <div className="px-5 py-2.5 flex items-center gap-1 flex-wrap border-b border-slate-100 bg-slate-50/60">
-                          <span className="text-xs text-slate-400 mr-1" title="Summarize messages within this conversation">Summarize</span>
-                          {SUMMARY_OPTIONS.map(({ label, count, title }) => {
-                            const key = `${thread.id}-${count}`
-                            const isLoading = summaryLoading === key
-                            const hasSummary = !!summaries[key]
-                            return (
-                              <button
-                                key={label}
-                                onClick={(e) => { e.stopPropagation(); handleSummarize(thread.id, count) }}
-                                disabled={isLoading}
-                                title={title}
-                                className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors disabled:opacity-40 ${
-                                  hasSummary
-                                    ? "bg-primary-600 text-white border-primary-600"
-                                    : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
-                                }`}
-                              >
-                                {isLoading ? "…" : label}
-                              </button>
-                            )
-                          })}
-                          <span className="text-slate-200 mx-1">|</span>
-                          <span className="text-xs text-slate-400 mr-1" title="Generate an AI reply draft, then edit and send">Reply</span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest", category: thread.category }) }}
-                            title="AI draft based only on the most recent message"
-                            className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                          >
-                            Latest
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full", category: thread.category }) }}
-                            title="AI draft based on the entire conversation history"
-                            className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                          >
-                            Full history
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none", category: thread.category }) }}
-                            title="Start with a blank reply — write it yourself"
-                            className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                          >
-                            Manual
-                          </button>
-                        </div>
-
-                        {/* Summary output */}
-                        {SUMMARY_OPTIONS.map(({ count }) => {
-                          const key = `${thread.id}-${count}`
-                          return summaries[key] ? (
-                            <div key={key} className="px-5 py-3 bg-primary-50 border-b border-primary-100 text-sm text-slate-700 leading-relaxed">
-                              {summaries[key]}
-                            </div>
-                          ) : null
-                        }).filter(Boolean).slice(-1)}
-
-                        {/* Messages */}
-                        <div className="divide-y divide-slate-50">
-                          {thread.messages.map((msg) => (
-                            <div key={msg.id} className="px-5 py-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-slate-700">{msg.from}</span>
-                                <span className="text-xs text-slate-400">{formatDate(msg.date)}</span>
-                              </div>
-                              <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
-                                {msg.body || msg.snippet || "(no content)"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-
-              {!loading && filtered.length === 0 && threads.length > 0 && (
-                <div className="text-center py-12 text-slate-400">
-                  <p className="text-sm">No conversations in this category.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Sent folder */}
-          {folder === "sent" && (
-            <div>
-              {sentLoading && (
-                <div className="text-center py-20 text-slate-400">
-                  <p className="text-sm">Loading sent emails…</p>
-                </div>
-              )}
-              <div className="space-y-2">
-                {sentEmails.map((email) => (
-                  <div
-                    key={email.id}
-                    className={`bg-white rounded-2xl border border-slate-200 cursor-pointer ${
-                      expandedId === email.id ? "shadow-md" : "hover:shadow-sm"
-                    }`}
-                    onClick={() => setExpandedId(expandedId === email.id ? null : email.id)}
-                  >
-                    <div className="px-5 py-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs text-slate-400 mb-0.5">To: {email.fromEmail}</div>
-                          <div className="text-base font-semibold text-slate-800 truncate">{email.subject}</div>
-                          {expandedId !== email.id && (
-                            <div className="text-sm text-slate-500 truncate mt-0.5">{email.snippet}</div>
-                          )}
-                        </div>
-                        <span className="text-xs text-slate-400 pt-0.5 shrink-0">{formatDate(email.date)}</span>
-                      </div>
-                    </div>
-                    {expandedId === email.id && (
-                      <div className="border-t border-slate-100 px-5 py-4">
-                        <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
-                          {email.body || email.snippet || "(no content)"}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {!sentLoading && sentEmails.length === 0 && (
-                  <div className="text-center py-20 text-slate-400">
-                    <p className="text-sm">No sent emails found.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
+        )}
+      </main>
 
       {compose && (
         <ComposePanel

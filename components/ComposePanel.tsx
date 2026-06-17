@@ -117,7 +117,7 @@ export default function ComposePanel({ threadId, thread, scope = "full", autoDra
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-4 py-2.5 bg-slate-700 text-white rounded-t-xl cursor-pointer select-none shrink-0"
+        className="flex items-center justify-between px-4 py-2.5 bg-primary-900 text-white rounded-t-xl cursor-pointer select-none shrink-0"
         onClick={() => setMinimized((m) => !m)}
       >
         <span className="text-sm font-medium truncate">
@@ -251,7 +251,7 @@ export default function ComposePanel({ threadId, thread, scope = "full", autoDra
               disabled={loadingDraft}
               className="px-3 py-1.5 text-sm text-slate-600 hover:bg-coral-50 hover:text-coral-600 disabled:opacity-40 rounded-full transition-colors"
             >
-              {loadingDraft ? "Writing…" : "✨ AI Draft"}
+              {loadingDraft ? "Writing…" : "✦ AI Draft"}
             </button>
             <button
               onClick={onClose}

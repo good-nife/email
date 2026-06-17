@@ -224,7 +224,7 @@ export default function SearchPage() {
             {summary && (
               <div className="mb-6 bg-white border border-primary-100 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-coral-500">✨</span>
+                  <span className="text-coral-500">✦</span>
                   <h2 className="font-semibold text-primary-900 text-sm">AI Summary</h2>
                 </div>
                 <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{summary}</p>
