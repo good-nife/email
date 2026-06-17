@@ -6,21 +6,21 @@
 }
 
 @theme {
-  /* Primary brand accent — vivid cobalt blue */
-  --color-primary-50: #ECEFFE;
-  --color-primary-100: #D8E0FD;
-  --color-primary-200: #B1C0FB;
-  --color-primary-300: #91A6F9;
-  --color-primary-400: #718CF8;
-  --color-primary-500: #5172F6;
-  --color-primary-600: #345AF4;
-  --color-primary-700: #0C36DF;
-  --color-primary-800: #0928A5;
-  --color-primary-900: #061A6B;
-  --color-primary-950: #030B33;
+  /* Primary brand accent — Clario light blue */
+  --color-primary-50: #EFF4FB;
+  --color-primary-100: #E1ECF8;
+  --color-primary-200: #C6DBF1;
+  --color-primary-300: #A2C3E7;
+  --color-primary-400: #74A3D9;
+  --color-primary-500: #5390D5;
+  --color-primary-600: #3D7EC9;
+  --color-primary-700: #2E68B0;
+  --color-primary-800: #25548E;
+  --color-primary-900: #1D4068;
+  --color-primary-950: #122842;
 
-  /* Secondary accent — coral, for AI/highlight touches */
-  --color-coral-50: #FDEDE6;
-  --color-coral-500: #E8744B;
-  --color-coral-600: #D15D35;
+  /* Secondary accent — cool teal, for AI / highlight touches */
+  --color-coral-50: #E6F3F4;
+  --color-coral-500: #3DA0B5;
+  --color-coral-600: #2F8092;
 }
