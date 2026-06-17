@@ -535,14 +535,37 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Summary output */}
-                      {SUMMARY_OPTIONS.map(({ count }) => {
-                        const key = `${thread.id}-${count}`
-                        return summaries[key] ? (
-                          <div key={key} className="px-5 py-3 bg-primary-50 border-b border-primary-100 text-sm text-slate-700 leading-relaxed">
-                            {summaries[key]}
+                      {(() => {
+                        const activeSummary = SUMMARY_OPTIONS.slice().reverse().find(({ count }) => summaries[`${thread.id}-${count}`])
+                        if (!activeSummary) return null
+                        const key = `${thread.id}-${activeSummary.count}`
+                        const labelMap: Record<string, string> = {
+                          Latest: 'Latest message',
+                          'Last 5': 'Last 5 messages',
+                          'Last 10': 'Last 10 messages',
+                          All: 'All messages',
+                        }
+                        return (
+                          <div key={key} className="mx-5 my-3 rounded-xl bg-primary-50 border border-primary-200 overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-2 border-b border-primary-200 bg-primary-100/60">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-coral-500 text-xs">✦</span>
+                                <span className="text-xs font-semibold text-primary-800">Summary</span>
+                                <span className="text-xs text-primary-500">·</span>
+                                <span className="text-xs text-primary-600 font-medium">{labelMap[activeSummary.label] ?? activeSummary.label}</span>
+                              </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSummaries((prev) => { const next = { ...prev }; delete next[key]; return next }) }}
+                                className="text-xs text-primary-400 hover:text-primary-700 transition-colors"
+                                title="Dismiss summary"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <p className="px-4 py-3 text-sm text-slate-700 leading-relaxed">{summaries[key]}</p>
                           </div>
-                        ) : null
-                      }).filter(Boolean).slice(-1)}
+                        )
+                      })()}
 
                       {/* Messages */}
                       <div className="divide-y divide-slate-50">
