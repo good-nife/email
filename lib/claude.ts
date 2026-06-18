@@ -5,6 +5,29 @@ function getClient(apiKey: string) {
   return new Anthropic({ apiKey })
 }
 
+/** Attempt to parse JSON, trying progressively more aggressive repairs on failure. */
+function tryParseJSON<T>(text: string, fallback: T): T {
+  // 1. Direct parse
+  try { return JSON.parse(text) } catch {}
+  // 2. Extract the outermost {...} block and try again
+  const m = text.match(/\{[\s\S]*\}/)
+  if (!m) return fallback
+  try { return JSON.parse(m[0]) } catch {}
+  // 3. Strip control characters and non-printable ASCII, then retry
+  const cleaned = m[0]
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")  // control chars
+    .replace(/[""]/g, '"')   // curly double quotes → straight
+    .replace(/['']/g, "'")   // curly single quotes → straight (will be escaped next)
+    .replace(/'/g, "")       // remove apostrophes that can break JSON strings
+    .replace(/—/g, "-")      // em-dash → hyphen
+    .replace(/…/g, "...")    // ellipsis → three dots
+  try { return JSON.parse(cleaned) } catch {}
+  // 4. Last resort: remove the oneLiner fields entirely and parse without them
+  const noOneLiner = cleaned.replace(/"oneLiner"\s*:\s*"[^"]*",?/g, "")
+  try { return JSON.parse(noOneLiner) } catch {}
+  return fallback
+}
+
 export async function categorizeEmails(
   apiKey: string,
   emails: Email[],
@@ -43,9 +66,8 @@ Reply with JSON only, no explanation:
   })
 
   const text = message.content[0].type === "text" ? message.content[0].text : "{}"
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
   const result: { categories: string[]; assignments: { index: number; category: string; tags: string[] }[] } =
-    jsonMatch ? JSON.parse(jsonMatch[0]) : { categories: [], assignments: [] }
+    tryParseJSON(text, { categories: [], assignments: [] })
 
   return emails.map((email, i) => {
     const assignment = result.assignments.find((a) => a.index === i)
@@ -88,7 +110,7 @@ ${categoryInstruction}
 
 Also assign 2-4 short semantic tags to each conversation (lowercase, hyphenated if multi-word).
 
-Also write a "oneLiner" for each: a single clean sentence (max 15 words) summarising what the thread is about — written as a helpful plain-English preview, not a restatement of the subject line.
+Also write a "oneLiner" for each: a single clean sentence (max 12 words) summarising what the thread is about. Rules: plain English only, no quotes, no apostrophes, no em-dashes, no special characters — use only basic ASCII letters, numbers, spaces, commas, and periods.
 
 Conversations:
 ${threadList}
@@ -100,9 +122,8 @@ Reply with JSON only, no explanation:
   })
 
   const text = message.content[0].type === "text" ? message.content[0].text : "{}"
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
   const result: { categories: string[]; assignments: { index: number; category: string; tags: string[]; oneLiner?: string }[] } =
-    jsonMatch ? JSON.parse(jsonMatch[0]) : { categories: [], assignments: [] }
+    tryParseJSON(text, { categories: [], assignments: [] })
 
   return threads.map((thread, i) => {
     const assignment = result.assignments.find((a) => a.index === i)
