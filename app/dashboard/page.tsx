@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { CategorizedThread, Email } from "@/types"
 import ComposePanel from "@/components/ComposePanel"
 import { useResizableSidebar } from "@/lib/useResizableSidebar"
+import { useSettings } from "@/lib/useSettings"
 
 const COLOR_POOL = [
   "bg-blue-100 text-blue-700",
@@ -253,6 +254,7 @@ export default function DashboardPage() {
   }, {})
   const uniqueCategories = [...new Set(threads.map((t) => t.category))]
   const { width: sidebarWidth, startResize } = useResizableSidebar("sidebar-width", 208)
+  const { settings } = useSettings()
 
   return (
     <div className="flex gap-0 min-h-screen">
@@ -480,10 +482,14 @@ export default function DashboardPage() {
                           {thread.subject}
                         </div>
 
-                        {/* One-liner summary — AI-generated at fetch time, falls back to Gmail snippet */}
-                        {(thread.oneLiner || thread.snippet) && (
-                          <div className="text-xs text-slate-400 truncate mt-0.5">{thread.oneLiner || thread.snippet}</div>
-                        )}
+                        {/* One-liner: AI summary for long threads when enabled, otherwise raw snippet */}
+                        {(() => {
+                          const showOneLiner = settings.autoSummarize && thread.messageCount >= 4 && !!thread.oneLiner
+                          const text = showOneLiner ? thread.oneLiner! : thread.snippet
+                          return text ? (
+                            <div className="text-xs text-slate-400 truncate mt-0.5">{text}</div>
+                          ) : null
+                        })()}
 
                         {/* Tags */}
                         {thread.tags?.length > 0 && (
