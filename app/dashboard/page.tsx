@@ -85,6 +85,7 @@ export default function DashboardPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [summaries, setSummaries] = useState<Record<string, string>>({})
   const [summaryLoading, setSummaryLoading] = useState<string | null>(null)
+  const [activeSummaryCount, setActiveSummaryCount] = useState<Record<string, number | "all">>({})
   const [compose, setCompose] = useState<
     | { mode: "reply"; threadId: string; scope: string; category?: string }
     | { mode: "new"; category?: string }
@@ -219,7 +220,8 @@ export default function DashboardPage() {
       })
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
-      setSummaries((prev) => ({ ...prev, [key]: data.summary }))
+      const cleanSummary = (data.summary as string).replace(/^##\s+[^\n]+\n+/, '').trim()
+      setSummaries((prev) => ({ ...prev, [key]: cleanSummary }))
     } catch (e: any) {
       setSummaries((prev) => ({ ...prev, [key]: `Error: ${e.message}` }))
     } finally {
@@ -488,19 +490,28 @@ export default function DashboardPage() {
                     <div className="border-t border-slate-100">
                       {/* Action controls */}
                       <div className="px-5 py-2.5 flex items-center gap-1 flex-wrap border-b border-slate-100 bg-slate-50/60">
-                        <span className="text-xs text-slate-400 mr-1" title="Summarize messages within this conversation">Summarize</span>
+                        <span className="text-xs font-medium text-slate-600 mr-1" title="Summarize messages within this conversation">✦ Summarize</span>
                         {SUMMARY_OPTIONS.map(({ label, count, title }) => {
                           const key = `${thread.id}-${count}`
                           const isLoading = summaryLoading === key
-                          const hasSummary = !!summaries[key]
+                          const isActive = activeSummaryCount[thread.id] === count
                           return (
                             <button
                               key={label}
-                              onClick={(e) => { e.stopPropagation(); handleSummarize(thread.id, count) }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (isActive) {
+                                  // deselect
+                                  setActiveSummaryCount((prev) => { const next = { ...prev }; delete next[thread.id]; return next })
+                                } else {
+                                  setActiveSummaryCount((prev) => ({ ...prev, [thread.id]: count }))
+                                  handleSummarize(thread.id, count)
+                                }
+                              }}
                               disabled={isLoading}
                               title={title}
                               className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors disabled:opacity-40 ${
-                                hasSummary
+                                isActive
                                   ? "bg-primary-600 text-white border-primary-600"
                                   : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
                               }`}
@@ -536,8 +547,9 @@ export default function DashboardPage() {
 
                       {/* Summary output */}
                       {(() => {
-                        const activeSummary = SUMMARY_OPTIONS.slice().reverse().find(({ count }) => summaries[`${thread.id}-${count}`])
-                        if (!activeSummary) return null
+                        const activeCount = activeSummaryCount[thread.id]
+                        const activeSummary = activeCount !== undefined ? SUMMARY_OPTIONS.find(({ count }) => count === activeCount) : undefined
+                        if (!activeSummary || !summaries[`${thread.id}-${activeSummary.count}`]) return null
                         const key = `${thread.id}-${activeSummary.count}`
                         const labelMap: Record<string, string> = {
                           Latest: 'Latest message',
@@ -555,7 +567,7 @@ export default function DashboardPage() {
                                 <span className="text-xs text-primary-600 font-medium">{labelMap[activeSummary.label] ?? activeSummary.label}</span>
                               </div>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setSummaries((prev) => { const next = { ...prev }; delete next[key]; return next }) }}
+                                onClick={(e) => { e.stopPropagation(); setSummaries((prev) => { const next = { ...prev }; delete next[key]; return next }); setActiveSummaryCount((prev) => { const next = { ...prev }; delete next[thread.id]; return next }) }}
                                 className="text-xs text-primary-400 hover:text-primary-700 transition-colors"
                                 title="Dismiss summary"
                               >
