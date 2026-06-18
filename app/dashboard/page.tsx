@@ -86,6 +86,7 @@ export default function DashboardPage() {
   const [summaries, setSummaries] = useState<Record<string, string>>({})
   const [summaryLoading, setSummaryLoading] = useState<string | null>(null)
   const [activeSummaryCount, setActiveSummaryCount] = useState<Record<string, number | "all">>({})
+  const [activeReplyScope, setActiveReplyScope] = useState<Record<string, string>>({})
   const [compose, setCompose] = useState<
     | { mode: "reply"; threadId: string; scope: string; category?: string }
     | { mode: "new"; category?: string }
@@ -521,28 +522,38 @@ export default function DashboardPage() {
                           )
                         })}
                         <span className="text-slate-200 mx-1">|</span>
-                        <span className="text-xs text-slate-400 mr-1" title="Generate an AI reply draft, then edit and send">Reply</span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "latest", category: thread.category }) }}
-                          title="AI draft based only on the most recent message"
-                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                        >
-                          Latest
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "full", category: thread.category }) }}
-                          title="AI draft based on the entire conversation history"
-                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                        >
-                          Full history
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setCompose({ mode: "reply", threadId: thread.id, scope: "none", category: thread.category }) }}
-                          title="Start with a blank reply — write it yourself"
-                          className="px-2.5 py-1 text-xs rounded-full border bg-white text-slate-500 border-slate-200 hover:border-slate-400 font-medium transition-colors"
-                        >
-                          Manual
-                        </button>
+                        <span className="text-xs font-medium text-slate-600 mr-1" title="Generate an AI reply draft, then edit and send">Draft reply</span>
+                        {([
+                          { label: 'Latest',       scope: 'latest', title: 'AI draft based only on the most recent message' },
+                          { label: 'Full history', scope: 'full',   title: 'AI draft based on the entire conversation history' },
+                          { label: 'Manual',       scope: 'none',   title: 'Start with a blank reply — write it yourself' },
+                        ] as const).map(({ label, scope, title }) => {
+                          const isActive = activeReplyScope[thread.id] === scope && compose?.mode === 'reply' && compose.threadId === thread.id
+                          return (
+                            <button
+                              key={scope}
+                              title={title}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (isActive) {
+                                  // deselect — close compose
+                                  setActiveReplyScope((prev) => { const next = { ...prev }; delete next[thread.id]; return next })
+                                  setCompose(null)
+                                } else {
+                                  setActiveReplyScope((prev) => ({ ...prev, [thread.id]: scope }))
+                                  setCompose({ mode: 'reply', threadId: thread.id, scope, category: thread.category })
+                                }
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${
+                                isActive
+                                  ? 'bg-primary-600 text-white border-primary-600'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          )
+                        })}
                       </div>
 
                       {/* Summary output */}
@@ -668,8 +679,8 @@ export default function DashboardPage() {
           autoDraft={compose.mode === "reply" && compose.scope !== "none"}
           categories={uniqueCategories}
           defaultCategory={compose.category}
-          onClose={() => setCompose(null)}
-          onSent={() => setCompose(null)}
+          onClose={() => { setCompose(null); setActiveReplyScope((prev) => { if (compose?.mode !== 'reply') return prev; const next = { ...prev }; delete next[compose.threadId]; return next }) }}
+          onSent={() => { setCompose(null); setActiveReplyScope({}) }}
         />
       )}
     </div>
