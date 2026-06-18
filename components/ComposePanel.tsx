@@ -27,6 +27,7 @@ export default function ComposePanel({ threadId, thread, scope = "full", autoDra
   const [error, setError] = useState("")
   const bodyRef = useRef<HTMLDivElement>(null)
 
+  // Populate To/Subject when the thread changes
   useEffect(() => {
     if (!threadId) return
     if (thread) {
@@ -35,8 +36,13 @@ export default function ComposePanel({ threadId, thread, scope = "full", autoDra
     } else {
       loadThread()
     }
-    if (autoDraft) handleDraft()
   }, [threadId])
+
+  // Re-draft whenever threadId or scope changes (if autoDraft is on)
+  useEffect(() => {
+    if (!threadId || !autoDraft) return
+    handleDraft()
+  }, [threadId, scope])
 
   async function loadThread() {
     setLoadingThread(true)

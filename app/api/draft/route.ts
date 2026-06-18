@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (scope === "latest") {
       thread = { ...thread, messages: thread.messages.slice(-1) }
     }
-    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "")
+    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full")
   } else {
     draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads)
   }

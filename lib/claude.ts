@@ -117,7 +117,8 @@ export async function draftReply(
   thread: Thread,
   sentEmails: Email[],
   categoryThreads: Thread[] = [],
-  extraContext = ""
+  extraContext = "",
+  scope: "latest" | "full" = "full"
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -137,20 +138,26 @@ export async function draftReply(
     .map((t) => `Subject: ${t.subject}\nPreview: ${(t.snippet || t.messages[0]?.body.trim() || "").slice(0, 200)}`)
     .join("\n\n")
 
+  const scopeInstruction = scope === "latest"
+    ? "You are helping someone write a quick, focused reply to the single most recent email in a conversation. Respond ONLY to what that latest message says — its specific question, request, or point. Do not reference or summarise earlier messages in the thread. Keep the reply concise and direct."
+    : "You are helping someone write a considered reply to an ongoing email conversation. You have the full thread history — use the accumulated context, prior agreements, decisions, and the evolving tone to craft a reply that is coherent with everything discussed so far. Acknowledge relevant history where appropriate."
+
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 1024,
     messages: [
       {
         role: "user",
-        content: `You are helping someone write an email reply. Study their writing style from these past emails they sent:
+        content: `${scopeInstruction}
+
+Study this person's writing style from past emails they sent:
 
 ${voiceSamples}
 ${categoryContext ? `\nFor additional context, here are some other related emails:\n${categoryContext}\n` : ""}
 ${extraContext ? `\nThe user wants this reply to specifically cover: ${extraContext}\n` : ""}
-Now write a reply to this email thread. Match their tone, length, and style exactly — use similar greetings, sign-offs, and phrasing patterns. Only return the email body text, no subject line.
+Now write the reply. Match their tone, length, and style exactly — use similar greetings, sign-offs, and phrasing patterns. Only return the email body text, no subject line.
 
-Thread to reply to:
+${scope === "latest" ? "Latest message to reply to" : "Full conversation thread"}:
 ${threadHistory}`,
       },
     ],
