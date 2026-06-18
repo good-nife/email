@@ -25,6 +25,7 @@ export interface Thread {
 export interface CategorizedThread extends Thread {
   category: string
   tags: string[]
+  oneLiner?: string
 }
 
 export type Category = string

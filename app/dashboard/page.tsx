@@ -480,9 +480,9 @@ export default function DashboardPage() {
                           {thread.subject}
                         </div>
 
-                        {/* Snippet — always shown as a one-line preview */}
-                        {thread.snippet && (
-                          <div className="text-xs text-slate-400 truncate mt-0.5">{thread.snippet}</div>
+                        {/* One-liner summary — AI-generated at fetch time, falls back to Gmail snippet */}
+                        {(thread.oneLiner || thread.snippet) && (
+                          <div className="text-xs text-slate-400 truncate mt-0.5">{thread.oneLiner || thread.snippet}</div>
                         )}
 
                         {/* Tags */}

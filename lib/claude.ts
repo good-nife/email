@@ -88,18 +88,20 @@ ${categoryInstruction}
 
 Also assign 2-4 short semantic tags to each conversation (lowercase, hyphenated if multi-word).
 
+Also write a "oneLiner" for each: a single clean sentence (max 15 words) summarising what the thread is about — written as a helpful plain-English preview, not a restatement of the subject line.
+
 Conversations:
 ${threadList}
 
 Reply with JSON only, no explanation:
-{"categories":["Cat1","Cat2",...],"assignments":[{"index":0,"category":"Cat1","tags":["tag1","tag2"]},{"index":1,"category":"Cat2","tags":["tag3"]},...]}`,
+{"categories":["Cat1","Cat2",...],"assignments":[{"index":0,"category":"Cat1","tags":["tag1","tag2"],"oneLiner":"Brief one-sentence summary."},{"index":1,"category":"Cat2","tags":["tag3"],"oneLiner":"Another summary."},...]}`,
       },
     ],
   })
 
   const text = message.content[0].type === "text" ? message.content[0].text : "{}"
   const jsonMatch = text.match(/\{[\s\S]*\}/)
-  const result: { categories: string[]; assignments: { index: number; category: string; tags: string[] }[] } =
+  const result: { categories: string[]; assignments: { index: number; category: string; tags: string[]; oneLiner?: string }[] } =
     jsonMatch ? JSON.parse(jsonMatch[0]) : { categories: [], assignments: [] }
 
   return threads.map((thread, i) => {
@@ -108,6 +110,7 @@ Reply with JSON only, no explanation:
       ...thread,
       category: assignment?.category ?? "Other",
       tags: assignment?.tags ?? [],
+      oneLiner: assignment?.oneLiner ?? undefined,
     }
   })
 }
