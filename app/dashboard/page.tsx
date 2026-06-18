@@ -27,6 +27,22 @@ const DOT_COLOR_POOL = [
   "bg-slate-400",
 ]
 
+// Per-thread avatar background / text pairs — enough variety to look distinct
+const AVATAR_COLOR_POOL = [
+  "bg-blue-100 text-blue-700",
+  "bg-violet-100 text-violet-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700",
+  "bg-rose-100 text-rose-700",
+  "bg-cyan-100 text-cyan-700",
+  "bg-indigo-100 text-indigo-700",
+  "bg-teal-100 text-teal-700",
+  "bg-orange-100 text-orange-700",
+  "bg-sky-100 text-sky-700",
+  "bg-pink-100 text-pink-700",
+  "bg-lime-100 text-lime-700",
+]
+
 const SUMMARY_OPTIONS = [
   { label: "Latest", count: 1, title: "Summarize the most recent message in this conversation" },
   { label: "Last 5", count: 5, title: "Summarize the last 5 messages in this conversation" },
@@ -416,6 +432,8 @@ export default function DashboardPage() {
           <div className="space-y-1.5">
             {filtered.map((thread) => {
               const isExpanded = expandedId === thread.id
+              const threadIndex = threads.indexOf(thread)
+              const avatarColor = AVATAR_COLOR_POOL[threadIndex % AVATAR_COLOR_POOL.length] ?? "bg-primary-100 text-primary-700"
               return (
                 <div
                   key={thread.id}
@@ -437,7 +455,7 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Avatar */}
-                      <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold flex items-center justify-center shrink-0">
+                      <div className={`w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center shrink-0 ${avatarColor}`}>
                         {getInitials(thread.participants[0] ?? "?")}
                       </div>
 
@@ -458,12 +476,12 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Subject */}
-                        <div className={`text-sm truncate ${!thread.isRead ? "font-medium text-slate-900" : "text-slate-600"}`}>
+                        <div className={`text-base truncate ${!thread.isRead ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}>
                           {thread.subject}
                         </div>
 
-                        {/* Snippet */}
-                        {!isExpanded && (
+                        {/* Snippet — always shown as a one-line preview */}
+                        {thread.snippet && (
                           <div className="text-xs text-slate-400 truncate mt-0.5">{thread.snippet}</div>
                         )}
 
