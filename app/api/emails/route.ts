@@ -29,7 +29,13 @@ export async function GET(req: NextRequest) {
     const currentIds = await listThreadIds(session.accessToken, 40)
 
     const cacheData = force ? null : readCacheMap<CategorizedThread>(userEmail)
-    const cached = cacheData ? { ...cacheData.emails } : {}
+    let cached = cacheData ? { ...cacheData.emails } : {}
+
+    // If every cached thread is "Other", the previous categorization run failed — clear it
+    const cachedValues = Object.values(cached)
+    if (cachedValues.length > 0 && cachedValues.every((t) => t.category === "Other")) {
+      cached = {}
+    }
 
     const newIds = currentIds.filter((id) => !cached[id])
 

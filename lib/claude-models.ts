@@ -21,9 +21,8 @@ export function getClaudeModelCandidates(env: NodeJS.ProcessEnv = process.env, p
   const configured = (preferredModel || env.ANTHROPIC_MODEL || "").trim()
   const ordered = configured ? [configured] : []
   const fallbacks = [
-    "claude-3-7-sonnet-latest",
-    "claude-3-5-sonnet-latest",
-    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-6",
   ]
 
   return [...new Set([...ordered, ...fallbacks])]
@@ -36,7 +35,12 @@ export function shouldRetryWithNextModel(error: unknown) {
     .filter(Boolean)
     .join(" ")
 
-  if (status && [400, 404, 422].includes(status)) {
+  // Never retry on billing/credit errors — the same key fails on every model
+  if (message && /credit|billing|balance/i.test(message)) {
+    return false
+  }
+
+  if (status && [404, 422].includes(status)) {
     return true
   }
 

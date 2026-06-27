@@ -131,7 +131,7 @@ Reply with JSON only, no explanation:
     tryParseJSON(text, { categories: [], assignments: [] })
 
   return threads.map((thread, i) => {
-    const assignment = result.assignments.find((a) => a.index === i)
+    const assignment = result.assignments?.find((a) => a.index === i)
     return {
       ...thread,
       category: assignment?.category ?? "Other",
