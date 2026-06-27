@@ -7,13 +7,15 @@ type ClaudeErrorLike = {
   }
 }
 
+type ClaudeMessageRole = "user" | "assistant" | "system"
+
 type ClaudeMessageParams = {
   model?: string
   max_tokens: number
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: ClaudeMessageRole; content: string }>
 }
 
-type ClaudeCreateMessage = (params: ClaudeMessageParams) => Promise<any>
+type ClaudeCreateMessage = (params: any) => Promise<any>
 
 export function getClaudeModelCandidates(env: NodeJS.ProcessEnv = process.env, preferredModel?: string) {
   const configured = (preferredModel || env.ANTHROPIC_MODEL || "").trim()
