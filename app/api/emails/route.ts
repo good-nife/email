@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = req.headers.get("x-anthropic-api-key") || process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured on server" }, { status: 500 })
   }
