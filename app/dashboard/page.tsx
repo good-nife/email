@@ -96,6 +96,7 @@ export default function DashboardPage() {
   const [threads, setThreads] = useState<CategorizedThread[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [categorizationError, setCategorizationError] = useState("")
   const [filter, setFilter] = useState("All")
   const [cachedAt, setCachedAt] = useState<string | null>(null)
   const [newCount, setNewCount] = useState(0)
@@ -153,6 +154,7 @@ export default function DashboardPage() {
       setThreads(data.threads ?? [])
       setCachedAt(data.cachedAt ?? null)
       setNewCount(data.newCount ?? 0)
+      setCategorizationError(data.categorizationError ?? "")
     } catch (e: any) {
       if (!silent) setError(e.message || "Failed to load emails")
     } finally {
@@ -310,6 +312,12 @@ export default function DashboardPage() {
                   {" "}to continue.
                 </>
               ) : error}
+            </div>
+          )}
+
+          {categorizationError && folder === "inbox" && (
+            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">
+              AI categorization failed: {categorizationError}
             </div>
           )}
 

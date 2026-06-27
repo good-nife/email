@@ -39,20 +39,27 @@ export async function GET(req: NextRequest) {
 
     const newIds = currentIds.filter((id) => !cached[id])
 
+    let categorizationError: string | undefined
+
     if (newIds.length > 0) {
       const newThreads = await fetchThreadsByIds(session.accessToken, newIds)
       const existingCategories = [...new Set(Object.values(cached).map((t) => t.category))]
-      const categorized = await categorizeThreads(apiKey, newThreads, existingCategories)
-      for (const thread of categorized) {
-        cached[thread.id] = thread
+      try {
+        const categorized = await categorizeThreads(apiKey, newThreads, existingCategories)
+        for (const thread of categorized) {
+          cached[thread.id] = thread
+        }
+        writeCacheMap<CategorizedThread>(userEmail, cached)
+      } catch (err: any) {
+        categorizationError = err?.message || String(err)
+        console.error("[/api/emails] categorization failed:", categorizationError)
       }
-      writeCacheMap<CategorizedThread>(userEmail, cached)
     }
 
     const threads = currentIds.map((id) => cached[id]).filter(Boolean)
     const updatedAt = newIds.length === 0 && cacheData ? cacheData.updatedAt : new Date().toISOString()
 
-    return NextResponse.json({ threads, cachedAt: updatedAt, newCount: newIds.length })
+    return NextResponse.json({ threads, cachedAt: updatedAt, newCount: newIds.length, categorizationError })
   } catch (err: any) {
     console.error("[/api/emails]", err?.message ?? err)
 
