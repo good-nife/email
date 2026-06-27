@@ -21,7 +21,7 @@ export function getClaudeModelCandidates(env: NodeJS.ProcessEnv = process.env, p
   const configured = (preferredModel || env.ANTHROPIC_MODEL || "").trim()
   const ordered = configured ? [configured] : []
   const fallbacks = [
-    "claude-haiku-4-5",
+    "claude-haiku-4-5-20251001",
     "claude-sonnet-4-6",
   ]
 

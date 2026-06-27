@@ -5,15 +5,13 @@ import { getClaudeModelCandidates, shouldRetryWithNextModel } from "./claude-mod
 test("prefers configured Anthropic model and falls back to known alternatives", () => {
   assert.deepEqual(getClaudeModelCandidates({ ANTHROPIC_MODEL: "custom-model" }), [
     "custom-model",
-    "claude-3-7-sonnet-latest",
-    "claude-3-5-sonnet-latest",
-    "claude-sonnet-4-5",
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-6",
   ])
 
   assert.deepEqual(getClaudeModelCandidates({}), [
-    "claude-3-7-sonnet-latest",
-    "claude-3-5-sonnet-latest",
-    "claude-sonnet-4-5",
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-6",
   ])
 })
 
