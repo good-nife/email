@@ -70,7 +70,10 @@ export default function ComposePanel({ threadId, thread, scope = "full", autoDra
     try {
       const res = await fetch("/api/draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
+        },
         body: JSON.stringify(
           threadId
             ? { threadId, scope, category: category || undefined, context: context || undefined }

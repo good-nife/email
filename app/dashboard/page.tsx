@@ -138,7 +138,11 @@ export default function DashboardPage() {
     if (!silent) setLoading(true)
     if (!silent) setError("")
     try {
-      const res = await fetch(`/api/emails${force ? "?force=true" : ""}`)
+      const res = await fetch(`/api/emails${force ? "?force=true" : ""}`, {
+        headers: {
+          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
+        },
+      })
       if (!res.ok) {
         const body = await res.text()
         let msg = res.status === 401 ? "session-expired" : "Failed to load emails"
@@ -208,7 +212,10 @@ export default function DashboardPage() {
     try {
       const res = await fetch("/api/category-search", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
+        },
         body: JSON.stringify({ category: filter, query: categoryQuery }),
       })
       if (!res.ok) {
@@ -233,7 +240,10 @@ export default function DashboardPage() {
     try {
       const res = await fetch("/api/summarize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
+        },
         body: JSON.stringify({ threadId, count }),
       })
       if (!res.ok) throw new Error(await res.text())
