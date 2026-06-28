@@ -17,14 +17,14 @@ type ClaudeMessageParams = {
 
 type ClaudeCreateMessage = (params: any) => Promise<any>
 
+// Primary model for categorization — cheap, fast, confirmed in SDK v0.100+
+export const CATEGORIZATION_MODEL = "claude-haiku-4-5-20251001"
+export const FALLBACK_MODEL = "claude-sonnet-4-6"
+
 export function getClaudeModelCandidates(env: NodeJS.ProcessEnv = process.env, preferredModel?: string) {
   const configured = (preferredModel || env.ANTHROPIC_MODEL || "").trim()
   const ordered = configured ? [configured] : []
-  const fallbacks = [
-    "claude-haiku-4-5-20251001",
-    "claude-sonnet-4-6",
-  ]
-
+  const fallbacks = [CATEGORIZATION_MODEL, FALLBACK_MODEL]
   return [...new Set([...ordered, ...fallbacks])]
 }
 
@@ -65,9 +65,6 @@ export async function createClaudeMessageWithFallback(
     }
   }
 
-  if (lastError) {
-    throw lastError
-  }
-
+  if (lastError) throw lastError
   throw new Error("Anthropic request failed")
 }

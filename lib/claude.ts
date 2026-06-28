@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { Category, CategorizedEmail, CategorizedThread, Email, Thread } from "@/types"
-import { createClaudeMessageWithFallback } from "./claude-models"
+import { createClaudeMessageWithFallback, CATEGORIZATION_MODEL } from "./claude-models"
 
 function getClient(apiKey: string) {
   return new Anthropic({ apiKey })
@@ -88,6 +88,7 @@ export async function categorizeThreads(
   existingCategories: string[] = []
 ): Promise<CategorizedThread[]> {
   if (threads.length === 0) return []
+
   const client = getClient(apiKey)
 
   const threadList = threads
@@ -99,44 +100,51 @@ export async function categorizeThreads(
   const categoryInstruction =
     existingCategories.length > 0
       ? `Assign each conversation to one of these existing categories: ${existingCategories.map((c) => `"${c}"`).join(", ")}. Only create a new category if a conversation truly doesn't fit any existing one.`
-      : `First decide what 5-8 category names make sense for these conversations. Use names specific to this inbox (e.g. "Bank Alerts", "Family", "Work — Acme Corp") rather than generic buckets.`
+      : `First decide what 5-8 category names make sense for these conversations. Use names specific to this inbox (e.g. "Bank Alerts", "Family", "Work") rather than generic buckets.`
 
-  const message = await createClaudeMessageWithFallback(
-    (params) => client.messages.create(params),
-    {
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: `Look at these email conversations and organize them into meaningful categories.
+  const response = await client.messages.create({
+    model: CATEGORIZATION_MODEL,
+    max_tokens: 2048,
+    messages: [
+      {
+        role: "user",
+        content: `Categorize these email conversations.
 
 ${categoryInstruction}
 
-Also assign 2-4 short semantic tags to each conversation (lowercase, hyphenated if multi-word).
-
-Also write a "oneLiner" for each: a single clean sentence (max 12 words) summarising what the thread is about. Rules: plain English only, no quotes, no apostrophes, no em-dashes, no special characters — use only basic ASCII letters, numbers, spaces, commas, and periods.
+Also assign 2-4 short tags (lowercase, hyphenated if multi-word) and a "oneLiner" (one plain-English sentence, max 12 words, ASCII only) for each conversation.
 
 Conversations:
 ${threadList}
 
-Reply with JSON only, no explanation:
-{"categories":["Cat1","Cat2",...],"assignments":[{"index":0,"category":"Cat1","tags":["tag1","tag2"],"oneLiner":"Brief one-sentence summary."},{"index":1,"category":"Cat2","tags":["tag3"],"oneLiner":"Another summary."},...]}`,
-        },
-      ],
-    }
-  )
+You MUST respond with ONLY a valid JSON object — no explanation, no markdown, no code fences. Exactly this shape:
+{"categories":["Cat1","Cat2"],"assignments":[{"index":0,"category":"Cat1","tags":["tag1"],"oneLiner":"Summary here."},{"index":1,"category":"Cat2","tags":["tag2"],"oneLiner":"Another summary."}]}`,
+      },
+    ],
+  })
 
-  const text = message.content[0].type === "text" ? message.content[0].text : "{}"
-  const result: { categories: string[]; assignments: { index: number; category: string; tags: string[]; oneLiner?: string }[] } =
-    tryParseJSON(text, { categories: [], assignments: [] })
+  const rawText = response.content[0]?.type === "text" ? response.content[0].text.trim() : ""
+
+  if (!rawText) {
+    throw new Error(`Claude (${CATEGORIZATION_MODEL}) returned an empty response`)
+  }
+
+  const result = tryParseJSON<{
+    categories: string[]
+    assignments: { index: number; category: string; tags: string[]; oneLiner?: string }[]
+  }>(rawText, { categories: [], assignments: [] })
+
+  if (!result.assignments?.length) {
+    throw new Error(`Claude response could not be parsed as JSON. Raw: ${rawText.slice(0, 300)}`)
+  }
 
   return threads.map((thread, i) => {
-    const assignment = result.assignments?.find((a) => a.index === i)
+    const assignment = result.assignments.find((a) => a.index === i)
     return {
       ...thread,
       category: assignment?.category ?? "Other",
       tags: assignment?.tags ?? [],
-      oneLiner: assignment?.oneLiner ?? undefined,
+      oneLiner: assignment?.oneLiner,
     }
   })
 }
