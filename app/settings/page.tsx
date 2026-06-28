@@ -2,8 +2,15 @@
 
 import { useSession } from "next-auth/react"
 import { useEffect, useRef, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useSettings } from "@/lib/useSettings"
 import { useAnthropicKey } from "@/hooks/useAnthropicKey"
+
+interface LinkedAccountPublic {
+  email: string
+  name: string
+  picture?: string
+}
 
 const NAV_SECTIONS = [
   { id: "profile",       label: "Profile" },
@@ -48,6 +55,60 @@ function ToneButton({ label, active, onClick }: { label: string; active: boolean
   )
 }
 
+const GmailIcon = () => (
+  <svg className="w-7 h-7 shrink-0" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4.5 10.5h39v27h-39z" fill="#fff" />
+    <path d="M4.5 10.5v27h39v-27L24 25.5 4.5 10.5Z" fill="#fff" stroke="#DADCE0" strokeWidth="1.5" />
+    <path d="M4.5 10.5 24 25.5l19.5-15" stroke="#EA4335" strokeWidth="2" strokeLinejoin="round" />
+  </svg>
+)
+
+function AccountRow({
+  name,
+  email,
+  picture,
+  badge,
+  onDisconnect,
+  disconnecting,
+}: {
+  name: string
+  email: string
+  picture?: string
+  badge?: string
+  onDisconnect?: () => void
+  disconnecting?: boolean
+}) {
+  return (
+    <div className="px-6 py-4 flex items-center gap-4">
+      {picture ? (
+        <img src={picture} alt={name} className="w-9 h-9 rounded-full shrink-0" />
+      ) : (
+        <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold shrink-0">
+          {name ? name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() : "?"}
+        </div>
+      )}
+      <GmailIcon />
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-slate-800 text-sm">{name || email}</div>
+        <div className="text-xs text-slate-500 truncate">{email}</div>
+      </div>
+      {badge ? (
+        <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shrink-0">
+          {badge}
+        </span>
+      ) : onDisconnect ? (
+        <button
+          onClick={onDisconnect}
+          disabled={disconnecting}
+          className="shrink-0 px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-500 font-medium hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40"
+        >
+          {disconnecting ? "Removing…" : "Disconnect"}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const { data: session } = useSession()
   const { settings, setSettings, loaded } = useSettings()
@@ -55,12 +116,55 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile")
   const [keyDraft, setKeyDraft] = useState("")
   const [keySaved, setKeySaved] = useState(false)
+  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccountPublic[]>([])
+  const [linkBanner, setLinkBanner] = useState<"success" | "error" | "same-account" | null>(null)
+  const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const mainRef = useRef<HTMLElement>(null)
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   const user = session?.user
   const initials = user?.name
     ? user.name.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase()
     : "?"
+
+  // Fetch linked accounts on mount
+  useEffect(() => {
+    fetch("/api/auth/linked-accounts")
+      .then((r) => r.json())
+      .then((d) => setLinkedAccounts(d.accounts ?? []))
+      .catch(() => {})
+  }, [])
+
+  // Handle ?linked= query param from OAuth redirect
+  useEffect(() => {
+    const linked = searchParams.get("linked")
+    if (!linked) return
+    setLinkBanner(linked as any)
+    if (linked === "success") {
+      // Reload linked accounts
+      fetch("/api/auth/linked-accounts")
+        .then((r) => r.json())
+        .then((d) => setLinkedAccounts(d.accounts ?? []))
+        .catch(() => {})
+    }
+    // Scroll to accounts section and clear query param
+    document.getElementById("section-accounts")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    router.replace("/settings", { scroll: false })
+    // Auto-dismiss banner after 5s
+    const t = setTimeout(() => setLinkBanner(null), 5000)
+    return () => clearTimeout(t)
+  }, [searchParams, router])
+
+  async function disconnectAccount(email: string) {
+    setDisconnecting(email)
+    try {
+      await fetch(`/api/auth/linked-accounts?email=${encodeURIComponent(email)}`, { method: "DELETE" })
+      setLinkedAccounts((prev) => prev.filter((a) => a.email !== email))
+    } finally {
+      setDisconnecting(null)
+    }
+  }
 
   // Scrollspy: highlight whichever section is nearest the top of the panel
   useEffect(() => {
@@ -266,23 +370,60 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Connected accounts ── */}
-          <section id="section-accounts" className="bg-white rounded-2xl border border-slate-200 p-6 mb-10">
-            <h3 className="font-semibold text-slate-800 text-base mb-4">Connected accounts</h3>
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <svg className="w-7 h-7 shrink-0" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4.5 10.5h39v27h-39z" fill="#fff" />
-                <path d="M4.5 10.5 24 25.5l19.5-15" stroke="#EA4335" strokeWidth="2" />
-                <path d="M4.5 10.5v27h39v-27L24 25.5 4.5 10.5Z" fill="#fff" stroke="#DADCE0" strokeWidth="1.5" />
-                <path d="M4.5 10.5 24 25.5l19.5-15" stroke="#EA4335" strokeWidth="2" strokeLinejoin="round" />
-              </svg>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-slate-800 text-sm">Gmail</div>
-                <div className="text-xs text-slate-500 truncate">{user?.email}</div>
+          <section id="section-accounts" className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 mb-10">
+            <div className="px-6 py-5 flex items-center justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-slate-800 text-base mb-0.5">Connected accounts</h3>
+                <p className="text-sm text-slate-500">All Google accounts linked to Clario.</p>
               </div>
-              <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                Connected
-              </span>
+              <a
+                href="/api/auth/link-google"
+                className="shrink-0 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors"
+              >
+                + Connect account
+              </a>
             </div>
+
+            {/* Link result banner */}
+            {linkBanner && (
+              <div className={`px-6 py-3 text-sm font-medium ${
+                linkBanner === "success"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                  : linkBanner === "same-account"
+                  ? "bg-amber-50 text-amber-700 border-amber-100"
+                  : "bg-red-50 text-red-700 border-red-100"
+              }`}>
+                {linkBanner === "success" && "Account connected successfully."}
+                {linkBanner === "same-account" && "That account is already your primary account."}
+                {linkBanner === "error" && "Could not connect account. Please try again."}
+              </div>
+            )}
+
+            {/* Primary account */}
+            <AccountRow
+              name={user?.name ?? ""}
+              email={user?.email ?? ""}
+              picture={user?.image ?? undefined}
+              badge="Primary"
+            />
+
+            {/* Linked accounts */}
+            {linkedAccounts.map((acct: LinkedAccountPublic) => (
+              <AccountRow
+                key={acct.email}
+                name={acct.name}
+                email={acct.email}
+                picture={acct.picture}
+                onDisconnect={() => disconnectAccount(acct.email)}
+                disconnecting={disconnecting === acct.email}
+              />
+            ))}
+
+            {linkedAccounts.length === 0 && (
+              <div className="px-6 py-4 text-sm text-slate-400">
+                No additional accounts linked yet.
+              </div>
+            )}
           </section>
 
         </div>
