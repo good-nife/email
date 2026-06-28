@@ -331,7 +331,7 @@ export default function DashboardPage() {
                 {thread.subject}
               </div>
               {previewText && (
-                <div className="text-xs text-slate-400 truncate mt-0.5">{previewText}</div>
+                <div className="text-sm text-slate-400 truncate mt-0.5">{previewText}</div>
               )}
               {thread.tags?.length > 0 && (
                 <div className="flex gap-1 flex-wrap mt-1.5">
