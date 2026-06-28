@@ -8,22 +8,25 @@ function getClient(apiKey: string) {
 
 /** Attempt to parse JSON, trying progressively more aggressive repairs on failure. */
 function tryParseJSON<T>(text: string, fallback: T): T {
+  // Strip markdown code fences (Claude sometimes wraps JSON in ```json ... ```)
+  const stripped = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim()
+
   // 1. Direct parse
-  try { return JSON.parse(text) } catch {}
+  try { return JSON.parse(stripped) } catch {}
   // 2. Extract the outermost {...} block and try again
-  const m = text.match(/\{[\s\S]*\}/)
+  const m = stripped.match(/\{[\s\S]*\}/)
   if (!m) return fallback
   try { return JSON.parse(m[0]) } catch {}
-  // 3. Strip control characters and non-printable ASCII, then retry
+  // 3. Strip control characters and normalise quotes, then retry
   const cleaned = m[0]
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")  // control chars
-    .replace(/[""]/g, '"')   // curly double quotes → straight
-    .replace(/['']/g, "'")   // curly single quotes → straight (will be escaped next)
-    .replace(/'/g, "")       // remove apostrophes that can break JSON strings
-    .replace(/—/g, "-")      // em-dash → hyphen
-    .replace(/…/g, "...")    // ellipsis → three dots
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .replace(/'/g, "")
+    .replace(/—/g, "-")
+    .replace(/…/g, "...")
   try { return JSON.parse(cleaned) } catch {}
-  // 4. Last resort: remove the oneLiner fields entirely and parse without them
+  // 4. Last resort: remove oneLiner fields and try again
   const noOneLiner = cleaned.replace(/"oneLiner"\s*:\s*"[^"]*",?/g, "")
   try { return JSON.parse(noOneLiner) } catch {}
   return fallback
@@ -104,7 +107,7 @@ export async function categorizeThreads(
 
   const response = await client.messages.create({
     model: CATEGORIZATION_MODEL,
-    max_tokens: 2048,
+    max_tokens: 8192,
     messages: [
       {
         role: "user",
