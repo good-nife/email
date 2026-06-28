@@ -250,12 +250,23 @@ export default function SettingsPage() {
 
         {/* ── Categories & labels ── */}
         {activeSection === "categories" && (
-          <section className="bg-white rounded-2xl border border-slate-200 p-6">
-            <h3 className="font-semibold text-slate-800 text-base mb-2">Categories &amp; labels</h3>
-            <p className="text-sm text-slate-500">
-              Categories are managed automatically by the AI as new emails arrive. You can rename them
-              directly from the inbox sidebar by hovering a category and clicking the ✏️ icon.
-            </p>
+          <section className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+            <div className="px-6 py-5">
+              <h3 className="font-semibold text-slate-800 text-base mb-0.5">Categories &amp; labels</h3>
+              <p className="text-sm text-slate-500">
+                Categories are managed automatically by the AI. Rename them from the inbox sidebar by hovering a category and clicking the pencil icon.
+              </p>
+            </div>
+            <div className="px-6 py-5 flex items-start justify-between gap-6">
+              <div>
+                <div className="font-medium text-slate-800 text-sm">Group inbox by category</div>
+                <div className="text-xs text-slate-400 mt-0.5">Collapse emails into expandable category sections in the inbox.</div>
+              </div>
+              <Toggle
+                on={settings.groupByCategory}
+                onChange={(v) => setSettings({ groupByCategory: v })}
+              />
+            </div>
           </section>
         )}
 

@@ -125,6 +125,9 @@ export default function DashboardPage() {
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
 
+  // Category group collapse state (set of collapsed category names)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+
   useEffect(() => {
     loadThreads(false)
 
@@ -267,6 +270,204 @@ export default function DashboardPage() {
   const uniqueCategories = [...new Set(threads.map((t) => t.category))]
   const { width: sidebarWidth, startResize } = useResizableSidebar("sidebar-width", 208)
   const { settings } = useSettings()
+
+  const showGrouped = settings.groupByCategory && filter === "All"
+  const groups = uniqueCategories
+    .map((cat) => ({ category: cat, threads: filtered.filter((t) => t.category === cat) }))
+    .filter((g) => g.threads.length > 0)
+
+  function toggleGroup(category: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      next.has(category) ? next.delete(category) : next.add(category)
+      return next
+    })
+  }
+
+  function renderThread(thread: CategorizedThread, hideCategory = false) {
+    const isExpanded = expandedId === thread.id
+    const threadIndex = threads.indexOf(thread)
+    const avatarColor = AVATAR_COLOR_POOL[threadIndex % AVATAR_COLOR_POOL.length] ?? "bg-primary-100 text-primary-700"
+    const showOneLiner = settings.autoSummarize && thread.messageCount >= 4 && !!thread.oneLiner
+    const previewText = showOneLiner ? thread.oneLiner! : thread.snippet
+    return (
+      <div
+        key={thread.id}
+        className={`bg-white rounded-xl border transition-shadow ${
+          !thread.isRead ? "border-primary-200" : "border-slate-200"
+        } ${isExpanded ? "shadow-sm" : ""}`}
+      >
+        {/* Thread header */}
+        <div
+          className="px-5 py-3.5 cursor-pointer"
+          onClick={() => setExpandedId(isExpanded ? null : thread.id)}
+        >
+          <div className="flex items-start gap-3">
+            <div className="mt-1.5 shrink-0">
+              {!thread.isRead
+                ? <div className="w-2 h-2 rounded-full bg-coral-500" />
+                : <div className="w-2 h-2" />}
+            </div>
+            <div className={`w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center shrink-0 ${avatarColor}`}>
+              {getInitials(thread.participants[0] ?? "?")}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className={`text-sm truncate ${!thread.isRead ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+                  {participantDisplay(thread.participants)}
+                </span>
+                {thread.messageCount > 1 && (
+                  <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0 font-medium">
+                    {thread.messageCount}
+                  </span>
+                )}
+                {!hideCategory && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${categoryColor(thread.category, uniqueCategories)}`}>
+                    {thread.category}
+                  </span>
+                )}
+              </div>
+              <div className={`text-base truncate ${!thread.isRead ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}>
+                {thread.subject}
+              </div>
+              {previewText && (
+                <div className="text-xs text-slate-400 truncate mt-0.5">{previewText}</div>
+              )}
+              {thread.tags?.length > 0 && (
+                <div className="flex gap-1 flex-wrap mt-1.5">
+                  {thread.tags.map((tag) => (
+                    <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 font-mono">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="shrink-0 flex items-center gap-2">
+              <span className="text-xs text-slate-400">{formatDate(thread.lastDate)}</span>
+              <span className={`text-slate-300 text-xs transition-transform ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded content */}
+        {isExpanded && (
+          <div className="border-t border-slate-100">
+            <div className="px-5 py-2.5 flex items-center gap-1 flex-wrap border-b border-slate-100 bg-slate-50/60">
+              <span className="text-xs font-medium text-slate-600 mr-1" title="Summarize messages within this conversation">✦ Summarize</span>
+              {SUMMARY_OPTIONS.map(({ label, count, title }) => {
+                const key = `${thread.id}-${count}`
+                const isLoading = summaryLoading === key
+                const isActive = activeSummaryCount[thread.id] === count
+                return (
+                  <button
+                    key={label}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (isActive) {
+                        setActiveSummaryCount((prev) => { const next = { ...prev }; delete next[thread.id]; return next })
+                      } else {
+                        setActiveSummaryCount((prev) => ({ ...prev, [thread.id]: count }))
+                        handleSummarize(thread.id, count)
+                      }
+                    }}
+                    disabled={isLoading}
+                    title={title}
+                    className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors disabled:opacity-40 ${
+                      isActive
+                        ? "bg-primary-600 text-white border-primary-600"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                    }`}
+                  >
+                    {isLoading ? "…" : label}
+                  </button>
+                )
+              })}
+              <span className="text-slate-200 mx-1">|</span>
+              <span className="text-xs font-medium text-slate-600 mr-1" title="Generate an AI reply draft, then edit and send">Draft reply</span>
+              {([
+                { label: "Latest",       scope: "latest", title: "AI draft based only on the most recent message" },
+                { label: "Full history", scope: "full",   title: "AI draft based on the entire conversation history" },
+                { label: "Manual",       scope: "none",   title: "Start with a blank reply — write it yourself" },
+              ] as const).map(({ label, scope, title }) => {
+                const isActive = activeReplyScope[thread.id] === scope && compose?.mode === "reply" && compose.threadId === thread.id
+                return (
+                  <button
+                    key={scope}
+                    title={title}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (isActive) {
+                        setActiveReplyScope((prev) => { const next = { ...prev }; delete next[thread.id]; return next })
+                        setCompose(null)
+                      } else {
+                        setActiveReplyScope((prev) => ({ ...prev, [thread.id]: scope }))
+                        setCompose({ mode: "reply", threadId: thread.id, scope, category: thread.category })
+                      }
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${
+                      isActive
+                        ? "bg-primary-600 text-white border-primary-600"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {(() => {
+              const activeCount = activeSummaryCount[thread.id]
+              const activeSummary = activeCount !== undefined ? SUMMARY_OPTIONS.find(({ count }) => count === activeCount) : undefined
+              if (!activeSummary || !summaries[`${thread.id}-${activeSummary.count}`]) return null
+              const key = `${thread.id}-${activeSummary.count}`
+              const labelMap: Record<string, string> = {
+                Latest: "Latest message",
+                "Last 5": "Last 5 messages",
+                "Last 10": "Last 10 messages",
+                All: "All messages",
+              }
+              return (
+                <div key={key} className="mx-5 my-3 rounded-xl bg-primary-50 border border-primary-200 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-primary-200 bg-primary-100/60">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-coral-500 text-xs">✦</span>
+                      <span className="text-xs font-semibold text-primary-800">Summary</span>
+                      <span className="text-xs text-primary-500">·</span>
+                      <span className="text-xs text-primary-600 font-medium">{labelMap[activeSummary.label] ?? activeSummary.label}</span>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSummaries((prev) => { const next = { ...prev }; delete next[key]; return next }); setActiveSummaryCount((prev) => { const next = { ...prev }; delete next[thread.id]; return next }) }}
+                      className="text-xs text-primary-400 hover:text-primary-700 transition-colors"
+                      title="Dismiss summary"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="px-4 py-3 text-sm text-slate-700 leading-relaxed">{summaries[key]}</p>
+                </div>
+              )
+            })()}
+
+            <div className="divide-y divide-slate-50">
+              {thread.messages.map((msg) => (
+                <div key={msg.id} className="px-5 py-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-slate-700">{msg.from}</span>
+                    <span className="text-xs text-slate-400">{formatDate(msg.date)}</span>
+                  </div>
+                  <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+                    {msg.body || msg.snippet || "(no content)"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex gap-0 min-h-screen">
@@ -449,208 +650,32 @@ export default function DashboardPage() {
 
         {/* Inbox thread list */}
         {folder === "inbox" && (
-          <div className="space-y-1.5">
-            {filtered.map((thread) => {
-              const isExpanded = expandedId === thread.id
-              const threadIndex = threads.indexOf(thread)
-              const avatarColor = AVATAR_COLOR_POOL[threadIndex % AVATAR_COLOR_POOL.length] ?? "bg-primary-100 text-primary-700"
-              return (
-                <div
-                  key={thread.id}
-                  className={`bg-white rounded-xl border transition-shadow ${
-                    !thread.isRead ? "border-primary-200" : "border-slate-200"
-                  } ${isExpanded ? "shadow-sm" : ""}`}
-                >
-                  {/* Thread header */}
-                  <div
-                    className="px-5 py-3.5 cursor-pointer"
-                    onClick={() => setExpandedId(isExpanded ? null : thread.id)}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Unread dot */}
-                      <div className="mt-1.5 shrink-0">
-                        {!thread.isRead
-                          ? <div className="w-2 h-2 rounded-full bg-coral-500" />
-                          : <div className="w-2 h-2" />}
+          <div className={showGrouped ? "space-y-5" : "space-y-1.5"}>
+            {showGrouped ? (
+              groups.map(({ category, threads: groupThreads }) => {
+                const isCollapsed = collapsedGroups.has(category)
+                return (
+                  <div key={category}>
+                    <button
+                      onClick={() => toggleGroup(category)}
+                      className="flex items-center gap-2 w-full mb-2 px-1 group"
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${categoryDotColor(category, uniqueCategories)}`} />
+                      <span className="text-sm font-semibold text-slate-700">{category}</span>
+                      <span className="text-xs text-slate-400 font-normal">{groupThreads.length}</span>
+                      <span className={`ml-auto text-slate-300 text-xs transition-transform ${isCollapsed ? "-rotate-90" : ""}`}>▼</span>
+                    </button>
+                    {!isCollapsed && (
+                      <div className="space-y-1.5">
+                        {groupThreads.map((t) => renderThread(t, true))}
                       </div>
-
-                      {/* Avatar */}
-                      <div className={`w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center shrink-0 ${avatarColor}`}>
-                        {getInitials(thread.participants[0] ?? "?")}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        {/* Participants + badges */}
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-sm truncate ${!thread.isRead ? "font-semibold text-slate-900" : "text-slate-700"}`}>
-                            {participantDisplay(thread.participants)}
-                          </span>
-                          {thread.messageCount > 1 && (
-                            <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0 font-medium">
-                              {thread.messageCount}
-                            </span>
-                          )}
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${categoryColor(thread.category, uniqueCategories)}`}>
-                            {thread.category}
-                          </span>
-                        </div>
-
-                        {/* Subject */}
-                        <div className={`text-base truncate ${!thread.isRead ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}>
-                          {thread.subject}
-                        </div>
-
-                        {/* One-liner: AI summary for long threads when enabled, otherwise raw snippet */}
-                        {(() => {
-                          const showOneLiner = settings.autoSummarize && thread.messageCount >= 4 && !!thread.oneLiner
-                          const text = showOneLiner ? thread.oneLiner! : thread.snippet
-                          return text ? (
-                            <div className="text-xs text-slate-400 truncate mt-0.5">{text}</div>
-                          ) : null
-                        })()}
-
-                        {/* Tags */}
-                        {thread.tags?.length > 0 && (
-                          <div className="flex gap-1 flex-wrap mt-1.5">
-                            {thread.tags.map((tag) => (
-                              <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 font-mono">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="shrink-0 flex items-center gap-2">
-                        <span className="text-xs text-slate-400">{formatDate(thread.lastDate)}</span>
-                        <span className={`text-slate-300 text-xs transition-transform ${isExpanded ? "rotate-180" : ""}`}>▼</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
-
-                  {/* Expanded content */}
-                  {isExpanded && (
-                    <div className="border-t border-slate-100">
-                      {/* Action controls */}
-                      <div className="px-5 py-2.5 flex items-center gap-1 flex-wrap border-b border-slate-100 bg-slate-50/60">
-                        <span className="text-xs font-medium text-slate-600 mr-1" title="Summarize messages within this conversation">✦ Summarize</span>
-                        {SUMMARY_OPTIONS.map(({ label, count, title }) => {
-                          const key = `${thread.id}-${count}`
-                          const isLoading = summaryLoading === key
-                          const isActive = activeSummaryCount[thread.id] === count
-                          return (
-                            <button
-                              key={label}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (isActive) {
-                                  // deselect
-                                  setActiveSummaryCount((prev) => { const next = { ...prev }; delete next[thread.id]; return next })
-                                } else {
-                                  setActiveSummaryCount((prev) => ({ ...prev, [thread.id]: count }))
-                                  handleSummarize(thread.id, count)
-                                }
-                              }}
-                              disabled={isLoading}
-                              title={title}
-                              className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors disabled:opacity-40 ${
-                                isActive
-                                  ? "bg-primary-600 text-white border-primary-600"
-                                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
-                              }`}
-                            >
-                              {isLoading ? "…" : label}
-                            </button>
-                          )
-                        })}
-                        <span className="text-slate-200 mx-1">|</span>
-                        <span className="text-xs font-medium text-slate-600 mr-1" title="Generate an AI reply draft, then edit and send">Draft reply</span>
-                        {([
-                          { label: 'Latest',       scope: 'latest', title: 'AI draft based only on the most recent message' },
-                          { label: 'Full history', scope: 'full',   title: 'AI draft based on the entire conversation history' },
-                          { label: 'Manual',       scope: 'none',   title: 'Start with a blank reply — write it yourself' },
-                        ] as const).map(({ label, scope, title }) => {
-                          const isActive = activeReplyScope[thread.id] === scope && compose?.mode === 'reply' && compose.threadId === thread.id
-                          return (
-                            <button
-                              key={scope}
-                              title={title}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (isActive) {
-                                  // deselect — close compose
-                                  setActiveReplyScope((prev) => { const next = { ...prev }; delete next[thread.id]; return next })
-                                  setCompose(null)
-                                } else {
-                                  setActiveReplyScope((prev) => ({ ...prev, [thread.id]: scope }))
-                                  setCompose({ mode: 'reply', threadId: thread.id, scope, category: thread.category })
-                                }
-                              }}
-                              className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${
-                                isActive
-                                  ? 'bg-primary-600 text-white border-primary-600'
-                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          )
-                        })}
-                      </div>
-
-                      {/* Summary output */}
-                      {(() => {
-                        const activeCount = activeSummaryCount[thread.id]
-                        const activeSummary = activeCount !== undefined ? SUMMARY_OPTIONS.find(({ count }) => count === activeCount) : undefined
-                        if (!activeSummary || !summaries[`${thread.id}-${activeSummary.count}`]) return null
-                        const key = `${thread.id}-${activeSummary.count}`
-                        const labelMap: Record<string, string> = {
-                          Latest: 'Latest message',
-                          'Last 5': 'Last 5 messages',
-                          'Last 10': 'Last 10 messages',
-                          All: 'All messages',
-                        }
-                        return (
-                          <div key={key} className="mx-5 my-3 rounded-xl bg-primary-50 border border-primary-200 overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-2 border-b border-primary-200 bg-primary-100/60">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-coral-500 text-xs">✦</span>
-                                <span className="text-xs font-semibold text-primary-800">Summary</span>
-                                <span className="text-xs text-primary-500">·</span>
-                                <span className="text-xs text-primary-600 font-medium">{labelMap[activeSummary.label] ?? activeSummary.label}</span>
-                              </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setSummaries((prev) => { const next = { ...prev }; delete next[key]; return next }); setActiveSummaryCount((prev) => { const next = { ...prev }; delete next[thread.id]; return next }) }}
-                                className="text-xs text-primary-400 hover:text-primary-700 transition-colors"
-                                title="Dismiss summary"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                            <p className="px-4 py-3 text-sm text-slate-700 leading-relaxed">{summaries[key]}</p>
-                          </div>
-                        )
-                      })()}
-
-                      {/* Messages */}
-                      <div className="divide-y divide-slate-50">
-                        {thread.messages.map((msg) => (
-                          <div key={msg.id} className="px-5 py-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-semibold text-slate-700">{msg.from}</span>
-                              <span className="text-xs text-slate-400">{formatDate(msg.date)}</span>
-                            </div>
-                            <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
-                              {msg.body || msg.snippet || "(no content)"}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+                )
+              })
+            ) : (
+              filtered.map((t) => renderThread(t, false))
+            )}
 
             {!loading && filtered.length === 0 && threads.length > 0 && (
               <div className="text-center py-12 text-slate-400">

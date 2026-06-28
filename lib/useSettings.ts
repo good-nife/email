@@ -6,6 +6,7 @@ export interface AppSettings {
   defaultTone: "professional" | "friendly" | "concise"
   autoSummarize: boolean
   smartAutoTagging: boolean
+  groupByCategory: boolean
   defaultReplyContext: "latest" | "full" | "none"
   signature: string
 }
@@ -14,6 +15,7 @@ const DEFAULTS: AppSettings = {
   defaultTone: "friendly",
   autoSummarize: true,
   smartAutoTagging: true,
+  groupByCategory: true,
   defaultReplyContext: "full",
   signature: "",
 }
