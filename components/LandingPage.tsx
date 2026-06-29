@@ -391,51 +391,215 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ───────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-24 px-5 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2
-              className="text-4xl font-bold text-[#1B2735]"
-              style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
-            >
-              Up and running in minutes
-            </h2>
-            <p className="mt-4 text-lg text-slate-500">Three steps from signup to a smarter inbox.</p>
-          </div>
+      {/* ── Feature spotlights ─────────────────────────────────────────────── */}
+      <div id="how-it-works" className="bg-white">
 
-          <div className="grid md:grid-cols-3 gap-10">
-            {[
-              {
-                step: "1",
-                title: "Connect your inbox",
-                desc: "Sign in with Google. Clario requests read-only access to your Gmail — nothing more.",
-              },
-              {
-                step: "2",
-                title: "Add your AI key",
-                desc: "Paste your Anthropic API key in Settings. It never leaves your browser.",
-              },
-              {
-                step: "3",
-                title: "Watch it work",
-                desc: "Clario categorises emails, drafts replies in your voice, and summarises threads instantly.",
-              },
-            ].map(({ step, title, desc }, i) => (
-              <div key={step} className="relative text-center">
-                {i < 2 && (
-                  <div className="hidden md:block absolute top-6 left-[calc(50%+2rem)] right-0 h-px bg-primary-100" />
-                )}
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white bg-primary-600 mx-auto mb-5 relative z-10">
-                  {step}
-                </div>
-                <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+        {/* 01 — Ask anything */}
+        <section className="border-t border-slate-100 py-20 px-5">
+          <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            {/* Copy */}
+            <div>
+              <p className="text-lg font-semibold text-slate-300 mb-1">01</p>
+              <p className="text-xs font-bold tracking-widest uppercase text-primary-600 mb-4">Ask Anything</p>
+              <h3
+                className="text-4xl sm:text-5xl font-bold text-[#1B2735] mb-5 leading-tight"
+                style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+              >
+                Your inbox, answerable.
+              </h3>
+              <p className="text-slate-500 leading-relaxed mb-7 max-w-sm">
+                Ask in plain language and Clario reads across every thread to answer — what needs a reply, what you promised, what changed.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  '"What did I commit to this week?"',
+                  '"Summarize everything from the Riverside deal."',
+                  '"Who am I still waiting on?"',
+                ].map((q) => (
+                  <li key={q} className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <span className="text-primary-500 mt-0.5 flex-shrink-0 text-xs">✦</span>
+                    {q}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Mockup */}
+            <div className="bg-primary-50 rounded-2xl p-5">
+              <div className="bg-white rounded-xl px-4 py-3 flex items-center gap-2.5 shadow-sm border border-slate-100">
+                <span className="text-primary-500 text-xs flex-shrink-0">✦</span>
+                <span className="text-sm text-[#1B2735]">What did I commit to this week?</span>
               </div>
-            ))}
+              <div className="mt-3 rounded-xl p-4">
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  You promised James a cost comparison by Friday, told Sarah you'd confirm the lease by end of week, and owe Marcus 15 minutes on the LOI.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        {/* 02 — Smart auto-tagging */}
+        <section className="border-t border-slate-100 py-20 px-5">
+          <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            {/* Mockup — left on desktop, bottom on mobile */}
+            <div className="order-last lg:order-first bg-primary-50 rounded-2xl p-5 space-y-2.5">
+              {[
+                { label: "Cleaning — Operations", count: 19, color: "#3D7EC9" },
+                { label: "Business Acquisition",  count: 15, color: "#7C3AED" },
+                { label: "Marketing & Tools",      count: 3,  color: "#059669" },
+                { label: "Housing & Lease",        count: 1,  color: "#10B981" },
+              ].map(({ label, count, color }) => (
+                <div key={label} className="bg-white rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm border border-slate-100">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                  <span className="text-sm text-[#1B2735] flex-1">{label}</span>
+                  <span className="text-sm text-slate-400 font-medium tabular-nums">{count}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Copy */}
+            <div>
+              <p className="text-lg font-semibold text-slate-300 mb-1">02</p>
+              <p className="text-xs font-bold tracking-widest uppercase text-primary-600 mb-4">Smart Auto-Tagging</p>
+              <h3
+                className="text-4xl sm:text-5xl font-bold text-[#1B2735] mb-5 leading-tight"
+                style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+              >
+                Organized without lifting a finger.
+              </h3>
+              <p className="text-slate-500 leading-relaxed mb-7 max-w-sm">
+                Clario learns your categories and files every incoming message automatically — no rules to build, no folders to drag.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  "Learns from how you already sort",
+                  "Adapts as new projects appear",
+                  "One clean view, always current",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-primary-700 font-medium">
+                    <span className="text-primary-500 mt-0.5 flex-shrink-0 text-xs">✦</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* 03 — Thread summaries */}
+        <section className="border-t border-slate-100 py-20 px-5">
+          <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            {/* Copy */}
+            <div>
+              <p className="text-lg font-semibold text-slate-300 mb-1">03</p>
+              <p className="text-xs font-bold tracking-widest uppercase text-primary-600 mb-4">Thread Summaries</p>
+              <h3
+                className="text-4xl sm:text-5xl font-bold text-[#1B2735] mb-5 leading-tight"
+                style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+              >
+                The gist, instantly.
+              </h3>
+              <p className="text-slate-500 leading-relaxed mb-7 max-w-sm">
+                Open any long conversation and read a one-line summary first. Choose the latest message, the last five, or the whole history.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  "Latest · Last 5 · Last 10 · All",
+                  "Catch up before a meeting in seconds",
+                  "Never re-read a 30-reply chain again",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-primary-700 font-medium">
+                    <span className="text-primary-500 mt-0.5 flex-shrink-0 text-xs">✦</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Mockup */}
+            <div className="bg-primary-50 rounded-2xl p-5">
+              {/* Tabs */}
+              <div className="flex items-center gap-2 mb-4">
+                {["Latest", "Last 5", "Last 10", "All"].map((tab) => (
+                  <button
+                    key={tab}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      tab === "Last 5"
+                        ? "bg-primary-600 text-white"
+                        : "text-slate-500 hover:bg-white"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              {/* Summary card */}
+              <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+                <p className="text-xs font-bold tracking-widest uppercase text-primary-500 mb-3 flex items-center gap-1.5">
+                  <span>✦</span> Summary · Last 5 Messages
+                </p>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  The team agreed to consolidate onto one tool. James will share a cost comparison before Friday so a final decision can be made.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 04 — AI draft replies */}
+        <section className="border-t border-slate-100 py-20 px-5">
+          <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            {/* Mockup — left on desktop */}
+            <div className="order-last lg:order-first bg-primary-50 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-primary-500 mb-3 flex items-center gap-1.5">
+                <span>✦</span> Draft reply · your voice
+              </p>
+              <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-4">
+                <p className="text-sm text-primary-700 leading-relaxed">
+                  Thanks James — agree on consolidating onto one tool. Friday works for the cost review; send it over whenever it's ready and I'll take a look. Best, Nick
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors">
+                  Send
+                </button>
+                <button className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
+                  Edit
+                </button>
+              </div>
+            </div>
+
+            {/* Copy */}
+            <div>
+              <p className="text-lg font-semibold text-slate-300 mb-1">04</p>
+              <p className="text-xs font-bold tracking-widest uppercase text-primary-600 mb-4">AI Draft Replies</p>
+              <h3
+                className="text-4xl sm:text-5xl font-bold text-[#1B2735] mb-5 leading-tight"
+                style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+              >
+                A reply, ready to send.
+              </h3>
+              <p className="text-slate-500 leading-relaxed mb-7 max-w-sm">
+                Clario writes a complete draft in your tone using the full thread context. You stay in control — nothing sends without your tap.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  "Matches your voice and tone",
+                  "Uses the whole thread for context",
+                  "Always waits for your approval",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-primary-700 font-medium">
+                    <span className="text-primary-500 mt-0.5 flex-shrink-0 text-xs">✦</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </div>
 
       {/* ── Privacy card ───────────────────────────────────────────────────── */}
       <section id="privacy" className="py-24 px-5 bg-primary-50">
