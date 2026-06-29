@@ -1,0 +1,529 @@
+"use client"
+
+import { signIn } from "next-auth/react"
+import { useState } from "react"
+
+// ── Tiny SVG helpers ──────────────────────────────────────────────────────────
+
+function GmailIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      <path d="M6 36h6V22.8L4 16v18c0 1.1.9 2 2 2z" fill="#4285F4" />
+      <path d="M36 36h6c1.1 0 2-.9 2-2V16l-8 6.8V36z" fill="#34A853" />
+      <path d="M36 12l-12 9-12-9H6l18 13.8L42 12h-6z" fill="#EA4335" />
+      <path d="M4 16l8 6.8V12H6c-1.1 0-2 .9-2 2v2z" fill="#FBBC05" />
+      <path d="M44 14v2l-8 6.8V12h6c1.1 0 2 .9 2 2z" fill="#34A853" />
+    </svg>
+  )
+}
+
+function OutlookIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      <rect width="48" height="48" rx="8" fill="#0078D4" />
+      <path d="M8 14h20v20H8z" fill="#1490DF" />
+      <path d="M28 14h12v4L28 26V14z" fill="white" opacity="0.5" />
+      <path d="M40 14v20H28V26l12-8z" fill="white" opacity="0.3" />
+      <path d="M8 34l20 6V20L8 14v20z" fill="#28A8E0" />
+      <ellipse cx="18" cy="24" rx="6" ry="7" fill="white" />
+    </svg>
+  )
+}
+
+function MailIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+    </svg>
+  )
+}
+
+function ShieldIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4.18l7 3.12V11c0 4.07-2.7 7.86-7 9.23-4.3-1.37-7-5.16-7-9.23V8.3l7-3.12z" />
+    </svg>
+  )
+}
+
+// ── Connect inbox modal ───────────────────────────────────────────────────────
+
+function ConnectModal({ onClose }: { onClose: () => void }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleGmail() {
+    setLoading(true)
+    await signIn("google", { callbackUrl: "/dashboard" })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-8 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle on mobile */}
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden" />
+
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
+            <MailIcon className="w-7 h-7 text-primary-600" />
+          </div>
+          <h2 className="text-xl font-bold text-[#1B2735]">Connect your inbox</h2>
+          <p className="text-slate-500 text-sm mt-1.5">
+            Choose your email provider to get started
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            onClick={handleGmail}
+            disabled={loading}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-slate-200 hover:border-primary-400 hover:bg-primary-50 transition-all font-medium text-sm text-[#1B2735] disabled:opacity-60"
+          >
+            <GmailIcon size={22} />
+            <span>{loading ? "Connecting…" : "Continue with Gmail"}</span>
+            {!loading && (
+              <svg className="w-4 h-4 ml-auto text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+
+          <button
+            disabled
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 cursor-not-allowed text-sm font-medium"
+          >
+            <OutlookIcon size={22} />
+            <span>Outlook</span>
+            <span className="ml-auto text-xs bg-slate-100 px-2 py-0.5 rounded-full">Coming soon</span>
+          </button>
+        </div>
+
+        <p className="text-center text-xs text-slate-400 mt-5 leading-relaxed">
+          Read-only access · Emails never stored · Disconnect anytime from Google settings
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Mock inbox data ───────────────────────────────────────────────────────────
+
+const mockEmails = [
+  { from: "Sarah Chen", subject: "Q3 design review — feedback needed", tag: "Work", time: "9:41 AM", unread: true, color: "#3D7EC9" },
+  { from: "GitHub", subject: "PR #204 merged into main", tag: "Updates", time: "9:15 AM", unread: false, color: "#7C3AED" },
+  { from: "Stripe", subject: "Invoice #4821 paid — $1,200.00", tag: "Finance", time: "8:52 AM", unread: false, color: "#059669" },
+  { from: "Jordan Lee", subject: "Coffee next week?", tag: "Personal", time: "Yesterday", unread: true, color: "#D97706" },
+]
+
+const tagStyle: Record<string, string> = {
+  Work: "bg-blue-50 text-blue-600",
+  Updates: "bg-violet-50 text-violet-600",
+  Finance: "bg-emerald-50 text-emerald-600",
+  Personal: "bg-amber-50 text-amber-600",
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function LandingPage() {
+  const [modalOpen, setModalOpen] = useState(false)
+
+  function openModal() { setModalOpen(true) }
+  function signInDirect() { signIn("google", { callbackUrl: "/dashboard" }) }
+
+  return (
+    <div className="min-h-screen bg-primary-50" style={{ fontFamily: "var(--font-sans, 'Hanken Grotesk', sans-serif)" }}>
+      {modalOpen && <ConnectModal onClose={() => setModalOpen(false)} />}
+
+      {/* ── Navigation ─────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-primary-100/80" style={{ background: "rgba(239,244,251,0.85)", backdropFilter: "blur(14px)" }}>
+        <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-600">
+              <MailIcon className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-xl font-bold text-[#1B2735] tracking-tight">Clario</span>
+          </div>
+
+          {/* Links */}
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-500">
+            <a href="#features" className="hover:text-primary-600 transition-colors">Features</a>
+            <a href="#how-it-works" className="hover:text-primary-600 transition-colors">How it works</a>
+            <a href="#privacy" className="hover:text-primary-600 transition-colors">Privacy</a>
+          </nav>
+
+          {/* CTAs */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={signInDirect}
+              className="hidden sm:block px-4 py-2 text-sm font-medium text-[#1B2735] rounded-full hover:bg-white/70 transition-colors"
+            >
+              Sign in
+            </button>
+            <button
+              onClick={openModal}
+              className="px-5 py-2 text-sm font-semibold text-white bg-primary-600 rounded-full hover:bg-primary-700 transition-colors shadow-sm shadow-primary-600/20"
+            >
+              Get started
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Hero ───────────────────────────────────────────────────────────── */}
+      <section className="pt-20 pb-28 px-5">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
+          {/* Copy */}
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-7 bg-primary-100 text-primary-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 inline-block" />
+              Now in early access
+            </div>
+
+            <h1
+              className="text-5xl lg:text-[3.75rem] leading-[1.08] tracking-tight text-[#1B2735]"
+              style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+            >
+              Your inbox,<br />
+              <span className="text-primary-600">finally</span><br />
+              under control
+            </h1>
+
+            <p className="mt-6 text-lg text-slate-500 leading-relaxed max-w-[26rem]">
+              Clario reads your emails, sorts them intelligently, and drafts
+              replies in your voice — so you can focus on what actually matters.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button
+                onClick={openModal}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-lg shadow-primary-600/25"
+              >
+                Connect your email
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </button>
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-[#1B2735] border-2 border-[#1B2735]/15 hover:bg-white/70 transition-colors"
+              >
+                See how it works
+              </a>
+            </div>
+
+            <p className="mt-5 text-xs text-slate-400 flex items-center gap-2">
+              <ShieldIcon className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+              Read-only Gmail access · Emails never stored · Disconnect anytime
+            </p>
+          </div>
+
+          {/* Inbox mockup */}
+          <div className="relative mt-4 lg:mt-0">
+            {/* Main card */}
+            <div className="bg-white rounded-2xl shadow-2xl shadow-slate-200/80 border border-slate-100 overflow-hidden">
+              {/* Window chrome */}
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
+                <div className="flex gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-red-400" />
+                  <span className="w-3 h-3 rounded-full bg-amber-400" />
+                  <span className="w-3 h-3 rounded-full bg-green-400" />
+                </div>
+                <div className="flex-1 flex justify-center">
+                  <span className="text-xs text-slate-400 font-medium bg-slate-50 rounded-md px-3 py-1">
+                    Clario — Inbox
+                  </span>
+                </div>
+              </div>
+
+              {/* Category tabs */}
+              <div className="px-4 pt-3 pb-2 flex gap-2 border-b border-slate-100 overflow-x-auto scrollbar-none">
+                {["All", "Work", "Finance", "Updates", "Personal"].map((tab, i) => (
+                  <span
+                    key={tab}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 ${
+                      i === 0
+                        ? "text-white bg-primary-600"
+                        : "text-slate-500 bg-slate-100 hover:bg-slate-200"
+                    }`}
+                  >
+                    {tab}
+                  </span>
+                ))}
+              </div>
+
+              {/* Email rows */}
+              <div className="divide-y divide-slate-50">
+                {mockEmails.map((email, i) => (
+                  <div
+                    key={i}
+                    className={`px-4 py-3 flex items-center gap-3 ${i === 0 ? "bg-primary-50/60" : ""}`}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      style={{ background: email.color }}
+                    >
+                      {email.from[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-sm ${email.unread ? "font-bold text-slate-900" : "text-slate-600"}`}>
+                          {email.from}
+                        </span>
+                        <span className="text-xs text-slate-400 flex-shrink-0">{email.time}</span>
+                      </div>
+                      <p className={`text-xs mt-0.5 truncate ${email.unread ? "text-slate-700 font-medium" : "text-slate-400"}`}>
+                        {email.subject}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${tagStyle[email.tag]}`}>
+                      {email.tag}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Floating AI reply card */}
+            <div className="absolute -bottom-6 -right-4 sm:-right-8 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-56">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z" />
+                  </svg>
+                </div>
+                <span className="text-xs font-semibold text-[#1B2735]">AI Draft</span>
+                <span className="ml-auto text-xs text-emerald-500 font-medium">Ready</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                "Hi Sarah, thanks for sharing! I'll review the designs before Thursday's call…"
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button className="flex-1 text-xs py-1.5 rounded-lg text-white bg-primary-600 font-semibold">
+                  Send
+                </button>
+                <button className="flex-1 text-xs py-1.5 rounded-lg text-slate-500 bg-slate-100 font-semibold">
+                  Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Trust strip ────────────────────────────────────────────────────── */}
+      <section className="py-14 bg-white border-y border-slate-100">
+        <div className="max-w-4xl mx-auto px-5">
+          <p className="text-center text-xs font-semibold tracking-widest uppercase text-slate-400 mb-8">
+            Works with
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-10 sm:gap-16">
+            <div className="flex items-center gap-2.5">
+              <GmailIcon size={22} />
+              <span className="font-semibold text-slate-700 text-sm">Gmail</span>
+            </div>
+            <div className="flex items-center gap-2.5 opacity-40">
+              <OutlookIcon size={22} />
+              <span className="font-semibold text-slate-700 text-sm">Outlook</span>
+              <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">Soon</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect width="24" height="24" rx="4" fill="#4285F4" />
+                <text x="4" y="17" fontSize="13" fontWeight="bold" fill="white">G</text>
+              </svg>
+              <span className="font-semibold text-slate-700 text-sm">Google Workspace</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features grid ──────────────────────────────────────────────────── */}
+      <section id="features" className="py-24 px-5 bg-primary-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2
+              className="text-4xl font-bold text-[#1B2735]"
+              style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+            >
+              Everything your inbox needs
+            </h2>
+            <p className="mt-4 text-lg text-slate-500 max-w-lg mx-auto">
+              Stop drowning in email. Clario handles the sorting so you handle the decisions.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              {
+                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" /></svg>,
+                title: "Smart categorisation",
+                desc: "AI reads and sorts every email into Work, Finance, Updates, and more — automatically.",
+              },
+              {
+                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z" /></svg>,
+                title: "Replies in your voice",
+                desc: "Clario learns how you write and drafts responses that sound exactly like you.",
+              },
+              {
+                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>,
+                title: "Thread summaries",
+                desc: "Get the gist of long email chains in one sentence. No more reading through 40 replies.",
+              },
+              {
+                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" /></svg>,
+                title: "Person search",
+                desc: "Search any contact and instantly see your full history with them, summarised.",
+              },
+              {
+                icon: <ShieldIcon className="w-5 h-5" />,
+                title: "Privacy first",
+                desc: "Your API key stays in your browser. Emails are processed in real time and never stored.",
+              },
+              {
+                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg>,
+                title: "Multi-account",
+                desc: "Link multiple Google accounts and manage all your inboxes from one place.",
+              },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 bg-primary-50 text-primary-600">
+                  {icon}
+                </div>
+                <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ───────────────────────────────────────────────────── */}
+      <section id="how-it-works" className="py-24 px-5 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <h2
+              className="text-4xl font-bold text-[#1B2735]"
+              style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+            >
+              Up and running in minutes
+            </h2>
+            <p className="mt-4 text-lg text-slate-500">Three steps from signup to a smarter inbox.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-10">
+            {[
+              {
+                step: "1",
+                title: "Connect your inbox",
+                desc: "Sign in with Google. Clario requests read-only access to your Gmail — nothing more.",
+              },
+              {
+                step: "2",
+                title: "Add your AI key",
+                desc: "Paste your Anthropic API key in Settings. It never leaves your browser.",
+              },
+              {
+                step: "3",
+                title: "Watch it work",
+                desc: "Clario categorises emails, drafts replies in your voice, and summarises threads instantly.",
+              },
+            ].map(({ step, title, desc }, i) => (
+              <div key={step} className="relative text-center">
+                {i < 2 && (
+                  <div className="hidden md:block absolute top-6 left-[calc(50%+2rem)] right-0 h-px bg-primary-100" />
+                )}
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white bg-primary-600 mx-auto mb-5 relative z-10">
+                  {step}
+                </div>
+                <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Privacy card ───────────────────────────────────────────────────── */}
+      <section id="privacy" className="py-24 px-5 bg-primary-50">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-slate-100 shadow-sm text-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-6 bg-primary-50">
+              <ShieldIcon className="w-7 h-7 text-primary-600" />
+            </div>
+            <h2
+              className="text-3xl font-bold text-[#1B2735] mb-4"
+              style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+            >
+              Built with privacy at the core
+            </h2>
+            <p className="text-slate-500 leading-relaxed max-w-xl mx-auto mb-10">
+              Your emails are processed in real time and never stored on Clario's servers. Your AI API key lives
+              only in your browser's local storage. You can revoke Gmail access from Google's account settings at any time.
+            </p>
+
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { value: "Zero", label: "Emails stored" },
+                { value: "Read-only", label: "Gmail access" },
+                { value: "Your browser", label: "API key location" },
+              ].map(({ value, label }) => (
+                <div key={label} className="p-4 rounded-2xl bg-primary-50">
+                  <div className="text-lg font-bold text-primary-600">{value}</div>
+                  <div className="text-xs text-slate-500 mt-1">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Dark CTA ───────────────────────────────────────────────────────── */}
+      <section className="py-28 px-5 bg-[#1B2735]">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2
+            className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-5"
+            style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+          >
+            Ready for an inbox<br className="hidden sm:block" /> that works for you?
+          </h2>
+          <p className="text-slate-400 text-lg mb-9">
+            Connect your Gmail in seconds. No credit card required.
+          </p>
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-semibold text-white text-lg bg-primary-600 hover:bg-primary-500 transition-colors shadow-xl shadow-primary-600/30"
+          >
+            Get started for free
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </button>
+          <p className="text-slate-600 text-sm mt-5">Read-only access · Disconnect anytime</p>
+        </div>
+      </section>
+
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
+      <footer className="py-10 px-5 border-t border-white/5 bg-[#1B2735]">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary-600">
+              <MailIcon className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-bold text-white">Clario</span>
+          </div>
+          <p className="text-slate-500 text-sm">© 2026 Clario. Built with care.</p>
+          <div className="flex gap-6 text-sm text-slate-500">
+            <a href="#privacy" className="hover:text-white transition-colors">Privacy</a>
+            <a href="#" className="hover:text-white transition-colors">Terms</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
