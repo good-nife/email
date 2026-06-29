@@ -345,58 +345,46 @@ export default function LandingPage() {
 
       {/* ── Features grid ──────────────────────────────────────────────────── */}
       <section id="features" className="py-24 px-5 bg-primary-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-xs font-semibold tracking-widest uppercase text-primary-600 mb-4">
+              Why Clario
+            </p>
             <h2
-              className="text-4xl font-bold text-[#1B2735]"
+              className="text-4xl sm:text-5xl font-bold text-[#1B2735]"
               style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
             >
-              Everything your inbox needs
+              Spend minutes on email, not hours.
             </h2>
-            <p className="mt-4 text-lg text-slate-500 max-w-lg mx-auto">
-              Stop drowning in email. Clario handles the sorting so you handle the decisions.
+            <p className="mt-4 text-lg text-slate-500 max-w-md mx-auto">
+              Three quiet shifts that give you your morning back.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-3 gap-5">
             {[
               {
-                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" /></svg>,
-                title: "Smart categorisation",
-                desc: "AI reads and sorts every email into Work, Finance, Updates, and more — automatically.",
+                emoji: "📂",
+                title: "Sorted before you look",
+                desc: "Every message lands pre-tagged into the right project and category, so your inbox is organized the moment you open it.",
               },
               {
-                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z" /></svg>,
+                emoji: "⚡",
+                title: "Long threads, one line",
+                desc: "Twenty-message chains collapse into a single sentence. Catch up on anything in seconds, not scrolls.",
+              },
+              {
+                emoji: "✍️",
                 title: "Replies in your voice",
-                desc: "Clario learns how you write and drafts responses that sound exactly like you.",
+                desc: "Clario drafts thoughtful responses that sound like you. Skim, tweak if you like, and send.",
               },
-              {
-                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>,
-                title: "Thread summaries",
-                desc: "Get the gist of long email chains in one sentence. No more reading through 40 replies.",
-              },
-              {
-                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" /></svg>,
-                title: "Person search",
-                desc: "Search any contact and instantly see your full history with them, summarised.",
-              },
-              {
-                icon: <ShieldIcon className="w-5 h-5" />,
-                title: "Privacy first",
-                desc: "Your API key stays in your browser. Emails are processed in real time and never stored.",
-              },
-              {
-                icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg>,
-                title: "Multi-account",
-                desc: "Link multiple Google accounts and manage all your inboxes from one place.",
-              },
-            ].map(({ icon, title, desc }) => (
-              <div key={title} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 bg-primary-50 text-primary-600">
-                  {icon}
+            ].map(({ emoji, title, desc }) => (
+              <div key={title} className="bg-white rounded-2xl p-7 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 bg-primary-100 text-2xl">
+                  {emoji}
                 </div>
-                <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+                <h3 className="font-bold text-slate-900 mb-2 text-base">{title}</h3>
+                <p className="text-sm leading-relaxed text-primary-800/60">{desc}</p>
               </div>
             ))}
           </div>
