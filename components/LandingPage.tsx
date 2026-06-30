@@ -665,7 +665,7 @@ export default function LandingPage() {
             Ready for an inbox<br className="hidden sm:block" /> that works for you?
           </h2>
           <p className="text-slate-400 text-lg mb-9 max-w-xl mx-auto">
-            Connect your Gmail in seconds. No credit card, no commitment.
+            Connect your email in seconds. No credit card, no commitment.
           </p>
           <button
             onClick={openModal}
