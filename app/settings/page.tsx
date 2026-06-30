@@ -4,7 +4,6 @@ import { useSession } from "next-auth/react"
 import { useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useSettings } from "@/lib/useSettings"
-import { useAnthropicKey } from "@/hooks/useAnthropicKey"
 
 interface LinkedAccountPublic {
   email: string
@@ -112,10 +111,7 @@ function AccountRow({
 export default function SettingsPage() {
   const { data: session } = useSession()
   const { settings, setSettings, loaded } = useSettings()
-  const { apiKey, setApiKey, clearApiKey } = useAnthropicKey()
   const [activeSection, setActiveSection] = useState("profile")
-  const [keyDraft, setKeyDraft] = useState("")
-  const [keySaved, setKeySaved] = useState(false)
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccountPublic[]>([])
   const [linkBanner, setLinkBanner] = useState<"success" | "error" | "same-account" | null>(null)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
@@ -296,41 +292,6 @@ export default function SettingsPage() {
               </select>
             </div>
 
-            <div className="px-6 py-5">
-              <div className="font-medium text-slate-800 text-sm mb-0.5">Anthropic API key</div>
-              <div className="text-xs text-slate-400 mb-3">
-                Required for AI features.{" "}
-                {apiKey ? (
-                  <span className="text-emerald-600 font-medium">Key saved.</span>
-                ) : (
-                  <span className="text-amber-600 font-medium">No key set — AI features are disabled.</span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  placeholder={apiKey ? "••••••••••••••••" : "sk-ant-api03-…"}
-                  value={keyDraft}
-                  onChange={(e) => { setKeyDraft(e.target.value); setKeySaved(false) }}
-                  className="flex-1 text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-primary-400 font-mono"
-                />
-                <button
-                  onClick={() => { if (keyDraft.trim()) { setApiKey(keyDraft.trim()); setKeyDraft(""); setKeySaved(true) } }}
-                  disabled={!keyDraft.trim()}
-                  className="px-4 py-1.5 text-sm rounded-lg bg-primary-600 text-white font-medium disabled:opacity-40 hover:bg-primary-700 transition-colors"
-                >
-                  {keySaved ? "Saved!" : "Save"}
-                </button>
-                {apiKey && (
-                  <button
-                    onClick={() => { clearApiKey(); setKeySaved(false) }}
-                    className="px-4 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-500 font-medium hover:bg-slate-50 transition-colors"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
           </section>
 
           {/* ── Signature ── */}
@@ -347,20 +308,11 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Categories & labels ── */}
-          <section id="section-categories" className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
-            <div className="px-6 py-5">
-              <h3 className="font-semibold text-slate-800 text-base mb-0.5">Categories &amp; labels</h3>
-              <p className="text-sm text-slate-500">
-                Categories are managed automatically by the AI. Rename them from the inbox sidebar by hovering a category and clicking the pencil icon.
-              </p>
-            </div>
-            <div className="px-6 py-5 flex items-start justify-between gap-6">
-              <div>
-                <div className="font-medium text-slate-800 text-sm">Group inbox by category</div>
-                <div className="text-xs text-slate-400 mt-0.5">Collapse emails into expandable category sections in the inbox.</div>
-              </div>
-              <Toggle on={settings.groupByCategory} onChange={(v) => setSettings({ groupByCategory: v })} />
-            </div>
+          <section id="section-categories" className="bg-white rounded-2xl border border-slate-200 p-6">
+            <h3 className="font-semibold text-slate-800 text-base mb-1">Categories &amp; labels</h3>
+            <p className="text-sm text-slate-500">
+              Categories are managed automatically by the AI. Rename them from the inbox sidebar by hovering a category and clicking the pencil icon.
+            </p>
           </section>
 
           {/* ── Notifications ── */}

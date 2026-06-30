@@ -125,8 +125,6 @@ export default function DashboardPage() {
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
 
-  // Category group collapse state (set of collapsed category names)
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadThreads(false)
@@ -270,19 +268,6 @@ export default function DashboardPage() {
   const uniqueCategories = [...new Set(threads.map((t) => t.category))]
   const { width: sidebarWidth, startResize } = useResizableSidebar("sidebar-width", 208)
   const { settings } = useSettings()
-
-  const showGrouped = settings.groupByCategory && filter === "All"
-  const groups = uniqueCategories
-    .map((cat) => ({ category: cat, threads: filtered.filter((t) => t.category === cat) }))
-    .filter((g) => g.threads.length > 0)
-
-  function toggleGroup(category: string) {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev)
-      next.has(category) ? next.delete(category) : next.add(category)
-      return next
-    })
-  }
 
   function renderThread(thread: CategorizedThread, hideCategory = false) {
     const isExpanded = expandedId === thread.id
@@ -650,33 +635,8 @@ export default function DashboardPage() {
 
         {/* Inbox thread list */}
         {folder === "inbox" && (
-          <div className={showGrouped ? "space-y-5" : "space-y-1.5"}>
-            {showGrouped ? (
-              groups.map(({ category, threads: groupThreads }) => {
-                const isCollapsed = collapsedGroups.has(category)
-                return (
-                  <div key={category}>
-                    <button
-                      onClick={() => toggleGroup(category)}
-                      className="flex items-center gap-2 w-full mb-2 px-1 group"
-                    >
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${categoryDotColor(category, uniqueCategories)}`} />
-                      <span className="text-sm font-semibold text-slate-700">{category}</span>
-                      <span className="text-xs text-slate-400 font-normal">{groupThreads.length}</span>
-                      <span className={`ml-auto text-slate-300 text-xs transition-transform ${isCollapsed ? "-rotate-90" : ""}`}>▼</span>
-                    </button>
-                    {!isCollapsed && (
-                      <div className="space-y-1.5">
-                        {groupThreads.map((t) => renderThread(t, true))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })
-            ) : (
-              filtered.map((t) => renderThread(t, false))
-            )}
-
+          <div className="space-y-1.5">
+            {filtered.map((t) => renderThread(t, false))}
             {!loading && filtered.length === 0 && threads.length > 0 && (
               <div className="text-center py-12 text-slate-400">
                 <p>No conversations in this category.</p>
