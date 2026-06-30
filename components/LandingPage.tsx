@@ -610,30 +610,73 @@ export default function LandingPage() {
 
       </div>
 
-      {/* ── Privacy card ───────────────────────────────────────────────────── */}
-      <section id="privacy" className="py-16 px-5 bg-primary-50">
+      {/* ── How it works + Privacy ─────────────────────────────────────────── */}
+      <section id="privacy" className="py-20 px-5 bg-primary-50">
         <div className="max-w-5xl mx-auto">
+
+          {/* Header */}
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold tracking-widest uppercase text-primary-600 mb-4">
+              Up and running in a minute
+            </p>
+            <h2
+              className="text-4xl sm:text-5xl font-bold text-[#1B2735]"
+              style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+            >
+              Three steps to a calmer inbox.
+            </h2>
+          </div>
+
+          {/* Step cards */}
+          <div className="grid md:grid-cols-3 gap-5 mb-8">
+            {[
+              {
+                n: "1",
+                title: "Connect your email",
+                desc: "Link Gmail or Outlook in two clicks. Clario connects securely and read-only.",
+              },
+              {
+                n: "2",
+                title: "Clario gets to work",
+                desc: "It reads, tags, and summarizes your inbox — usually within the first minute.",
+              },
+              {
+                n: "3",
+                title: "Skim, approve, done",
+                desc: "Review AI-drafted replies, tap send on the ones you like, and reclaim your morning.",
+              },
+            ].map(({ n, title, desc }) => (
+              <div key={n} className="bg-white rounded-2xl p-7 border border-slate-100 shadow-sm">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold text-white bg-[#1B2735] mb-5">
+                  {n}
+                </div>
+                <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Privacy card */}
           <div className="bg-primary-100/60 rounded-2xl p-8 sm:p-10 flex items-start gap-6 sm:gap-8">
-            {/* Shield icon */}
             <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-white shadow-sm border border-primary-100 flex items-center justify-center">
               <svg className="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
               </svg>
             </div>
-            {/* Text */}
             <div>
-              <h2
+              <h3
                 className="text-2xl sm:text-3xl font-bold text-[#1B2735] mb-3"
                 style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
               >
                 Your mail stays yours.
-              </h2>
+              </h3>
               <p className="text-slate-500 leading-relaxed max-w-2xl">
                 Clario reads your inbox to help you — it never sells data or sends anything without your tap.
                 Connect read-only, revoke access anytime, and every draft waits for your approval before it goes out.
               </p>
             </div>
           </div>
+
         </div>
       </section>
 
