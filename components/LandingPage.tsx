@@ -195,12 +195,12 @@ export default function LandingPage() {
             </div>
 
             <h1
-              className="text-5xl lg:text-[3.75rem] leading-[1.08] tracking-tight text-[#1B2735]"
+              className="text-5xl lg:text-[4rem] leading-[1.06] tracking-tight text-[#1B2735]"
               style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
             >
-              Your inbox,<br />
-              <span className="text-primary-600">finally</span><br />
-              under control
+              The inbox that<br />
+              <span className="text-primary-600">reads, sorts &amp; replies</span><br />
+              for you
             </h1>
 
             <p className="mt-6 text-lg text-slate-500 leading-relaxed max-w-[26rem]">
@@ -226,10 +226,18 @@ export default function LandingPage() {
               </a>
             </div>
 
-            <p className="mt-5 text-xs text-slate-400 flex items-center gap-2">
-              <ShieldIcon className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
-              Read-only Gmail access · Emails never stored · Disconnect anytime
-            </p>
+            <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+              {[
+                "Works with Gmail & Outlook",
+                "Read-only until you say send",
+                "Disconnect anytime",
+              ].map((point) => (
+                <span key={point} className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                  {point}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Inbox mockup */}
