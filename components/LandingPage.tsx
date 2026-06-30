@@ -38,6 +38,15 @@ function MailIcon({ className }: { className?: string }) {
   )
 }
 
+function ClarioMark({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M11.5 1.6c.7 5.7 1.9 6.9 7.6 7.6-5.7.7-6.9 1.9-7.6 7.6-.7-5.7-1.9-6.9-7.6-7.6 5.7-.7 6.9-1.9 7.6-7.6Z" />
+      <path d="M18.4 14.2c.35 2.6.95 3.2 3.55 3.55-2.6.35-3.2.95-3.55 3.55-.35-2.6-.95-3.2-3.55-3.55 2.6-.35 3.2-.95 3.55-3.55Z" opacity="0.9" />
+    </svg>
+  )
+}
+
 function ShieldIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -143,11 +152,11 @@ export default function LandingPage() {
       <header className="sticky top-0 z-40 border-b border-primary-100/80" style={{ background: "rgba(239,244,251,0.85)", backdropFilter: "blur(14px)" }}>
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-600">
-              <MailIcon className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-xl font-bold text-[#1B2735] tracking-tight">Clario</span>
+          <div className="flex items-center gap-2 font-semibold text-[#1B2735] text-lg">
+            <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-600 text-white shrink-0">
+              <ClarioMark size={15} />
+            </span>
+            Clario
           </div>
 
           {/* Links */}
@@ -663,11 +672,11 @@ export default function LandingPage() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="py-10 px-5 border-t border-white/5 bg-[#1B2735]">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary-600">
-              <MailIcon className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-bold text-white">Clario</span>
+          <div className="flex items-center gap-2 font-semibold text-white text-lg">
+            <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-600 text-white shrink-0">
+              <ClarioMark size={15} />
+            </span>
+            Clario
           </div>
           <p className="text-slate-500 text-sm">© 2026 Clario. Built with care.</p>
           <div className="flex gap-6 text-sm text-slate-500">
