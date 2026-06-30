@@ -611,34 +611,27 @@ export default function LandingPage() {
       </div>
 
       {/* ── Privacy card ───────────────────────────────────────────────────── */}
-      <section id="privacy" className="py-24 px-5 bg-primary-50">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-3xl p-10 sm:p-14 border border-slate-100 shadow-sm text-center">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-6 bg-primary-50">
-              <ShieldIcon className="w-7 h-7 text-primary-600" />
+      <section id="privacy" className="py-16 px-5 bg-primary-50">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-primary-100/60 rounded-2xl p-8 sm:p-10 flex items-start gap-6 sm:gap-8">
+            {/* Shield icon */}
+            <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-white shadow-sm border border-primary-100 flex items-center justify-center">
+              <svg className="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+              </svg>
             </div>
-            <h2
-              className="text-3xl font-bold text-[#1B2735] mb-4"
-              style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
-            >
-              Built with privacy at the core
-            </h2>
-            <p className="text-slate-500 leading-relaxed max-w-xl mx-auto mb-10">
-              Your emails are processed in real time and never stored on Clario's servers. Your AI API key lives
-              only in your browser's local storage. You can revoke Gmail access from Google's account settings at any time.
-            </p>
-
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { value: "Zero", label: "Emails stored" },
-                { value: "Read-only", label: "Gmail access" },
-                { value: "Your browser", label: "API key location" },
-              ].map(({ value, label }) => (
-                <div key={label} className="p-4 rounded-2xl bg-primary-50">
-                  <div className="text-lg font-bold text-primary-600">{value}</div>
-                  <div className="text-xs text-slate-500 mt-1">{label}</div>
-                </div>
-              ))}
+            {/* Text */}
+            <div>
+              <h2
+                className="text-2xl sm:text-3xl font-bold text-[#1B2735] mb-3"
+                style={{ fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }}
+              >
+                Your mail stays yours.
+              </h2>
+              <p className="text-slate-500 leading-relaxed max-w-2xl">
+                Clario reads your inbox to help you — it never sells data or sends anything without your tap.
+                Connect read-only, revoke access anytime, and every draft waits for your approval before it goes out.
+              </p>
             </div>
           </div>
         </div>
