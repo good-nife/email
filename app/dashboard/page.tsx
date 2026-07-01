@@ -598,7 +598,7 @@ export default function DashboardPage() {
               <input
                 value={categoryQuery}
                 onChange={(e) => setCategoryQuery(e.target.value)}
-                placeholder={`✦ Ask AI about your ${filter === "All" ? "inbox" : filter} emails…`}
+                placeholder={`✦ Ask anything about your ${filter === "All" ? "inbox" : filter} emails…`}
                 className="flex-1 px-4 py-2.5 bg-white border border-primary-200 rounded-full text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
               <button

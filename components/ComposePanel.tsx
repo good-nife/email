@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Thread } from "@/types"
+import { useSettings } from "@/lib/useSettings"
 
 interface ComposePanelProps {
   threadId?: string
@@ -15,6 +16,7 @@ interface ComposePanelProps {
 }
 
 export default function ComposePanel({ threadId, thread, scope = "full", autoDraft = false, categories = [], defaultCategory = "", onClose, onSent }: ComposePanelProps) {
+  const { settings } = useSettings()
   const [minimized, setMinimized] = useState(false)
   const [to, setTo] = useState("")
   const [subject, setSubject] = useState("")
@@ -73,8 +75,8 @@ export default function ComposePanel({ threadId, thread, scope = "full", autoDra
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           threadId
-            ? { threadId, scope, category: category || undefined, context: context || undefined }
-            : { to, subject, category: category || undefined, context: context || undefined }
+            ? { threadId, scope, category: category || undefined, context: context || undefined, signature: settings.signature || undefined }
+            : { to, subject, category: category || undefined, context: context || undefined, signature: settings.signature || undefined }
         ),
       })
       if (!res.ok) throw new Error(await res.text())

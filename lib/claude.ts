@@ -158,7 +158,8 @@ export async function draftReply(
   sentEmails: Email[],
   categoryThreads: Thread[] = [],
   extraContext = "",
-  scope: "latest" | "full" = "full"
+  scope: "latest" | "full" = "full",
+  signature = ""
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -205,7 +206,8 @@ ${threadHistory}`,
     }
   )
 
-  return message.content[0].type === "text" ? message.content[0].text : ""
+  const text = message.content[0].type === "text" ? message.content[0].text : ""
+  return signature.trim() ? `${text}\n\n${signature.trim()}` : text
 }
 
 export async function draftNewEmail(
@@ -214,7 +216,8 @@ export async function draftNewEmail(
   subject: string,
   context: string,
   sentEmails: Email[],
-  categoryThreads: Thread[] = []
+  categoryThreads: Thread[] = [],
+  signature = ""
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -251,7 +254,8 @@ Match their tone, length, and style. Only return the email body text, no subject
     }
   )
 
-  return message.content[0].type === "text" ? message.content[0].text : ""
+  const text = message.content[0].type === "text" ? message.content[0].text : ""
+  return signature.trim() ? `${text}\n\n${signature.trim()}` : text
 }
 
 export async function summarizeThread(

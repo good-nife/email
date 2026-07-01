@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { threadId, to, subject, context, scope, category } = body
+  const { threadId, to, subject, context, scope, category, signature } = body
 
   const [sentEmails] = await Promise.all([getSentEmails(session.accessToken, 15)])
 
@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
     if (scope === "latest") {
       thread = { ...thread, messages: thread.messages.slice(-1) }
     }
-    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full")
+    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full", signature ?? "")
   } else {
-    draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads)
+    draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads, signature ?? "")
   }
 
   return NextResponse.json({ draft })
