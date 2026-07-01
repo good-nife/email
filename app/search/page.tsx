@@ -84,10 +84,7 @@ export default function SearchPage() {
     try {
       const res = await fetch("/api/search", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q }),
       })
       if (!res.ok) throw new Error(await res.text())

@@ -142,7 +142,6 @@ export default function DashboardPage() {
     try {
       const res = await fetch(`/api/emails${force ? "?force=true" : ""}`, {
         headers: {
-          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
         },
       })
       if (!res.ok) {
@@ -217,7 +216,6 @@ export default function DashboardPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
         },
         body: JSON.stringify({ category: filter, query: categoryQuery }),
       })
@@ -245,7 +243,6 @@ export default function DashboardPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-anthropic-api-key": localStorage.getItem("anthropic_api_key") || "",
         },
         body: JSON.stringify({ threadId, count }),
       })
