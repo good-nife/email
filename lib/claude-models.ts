@@ -9,10 +9,16 @@ type ClaudeErrorLike = {
 
 type ClaudeMessageRole = "user" | "assistant" | "system"
 
+export type ClaudeContentBlock = {
+  type: "text"
+  text: string
+  cache_control?: { type: "ephemeral" }
+}
+
 type ClaudeMessageParams = {
   model?: string
   max_tokens: number
-  messages: Array<{ role: ClaudeMessageRole; content: string }>
+  messages: Array<{ role: ClaudeMessageRole; content: string | ClaudeContentBlock[] }>
 }
 
 type ClaudeCreateMessage = (params: any) => Promise<any>

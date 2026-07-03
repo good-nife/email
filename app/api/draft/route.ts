@@ -3,7 +3,10 @@ import { auth } from "@/auth"
 import { getThread, getSentEmails } from "@/lib/gmail"
 import { draftReply, draftNewEmail } from "@/lib/claude"
 import { readCacheMap } from "@/lib/cache"
+import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
 import { CategorizedThread } from "@/types"
+
+const DRAFT_CACHE_PREFIX = "drafts"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -18,12 +21,12 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { threadId, to, subject, context, scope, category, signature } = body
+  const userEmail = session.user?.email ?? "unknown"
 
   const [sentEmails] = await Promise.all([getSentEmails(session.accessToken, 15)])
 
   let categoryThreads: CategorizedThread[] = []
   if (category) {
-    const userEmail = session.user?.email ?? "unknown"
     const cacheData = readCacheMap<CategorizedThread>(userEmail)
     if (cacheData) {
       categoryThreads = Object.values(cacheData.emails).filter((t) => t.category === category)
@@ -38,7 +41,25 @@ export async function POST(req: NextRequest) {
     if (scope === "latest") {
       thread = { ...thread, messages: thread.messages.slice(-1) }
     }
+
+    // Cache by thread + the params that affect the output. thread.messageCount is part of
+    // the key so a new reply in the thread naturally invalidates the cached draft.
+    const cacheKey = responseCacheKey([
+      "reply",
+      threadId,
+      scope ?? "full",
+      category ?? "",
+      context ?? "",
+      signature ?? "",
+      thread.messageCount,
+    ])
+    const cached = getCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey)
+    if (cached) {
+      return NextResponse.json({ draft: cached })
+    }
+
     draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full", signature ?? "")
+    setCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey, draft)
   } else {
     draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads, signature ?? "")
   }

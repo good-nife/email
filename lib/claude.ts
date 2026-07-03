@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { Category, CategorizedEmail, CategorizedThread, Email, Thread } from "@/types"
-import { createClaudeMessageWithFallback, CATEGORIZATION_MODEL } from "./claude-models"
+import { createClaudeMessageWithFallback, CATEGORIZATION_MODEL, ClaudeContentBlock } from "./claude-models"
 
 function getClient(apiKey: string) {
   return new Anthropic({ apiKey })
@@ -183,6 +183,8 @@ export async function draftReply(
     ? "You are helping someone write a quick, focused reply to the single most recent email in a conversation. Respond ONLY to what that latest message says — its specific question, request, or point. Do not reference or summarise earlier messages in the thread. Keep the reply concise and direct."
     : "You are helping someone write a considered reply to an ongoing email conversation. You have the full thread history — use the accumulated context, prior agreements, decisions, and the evolving tone to craft a reply that is coherent with everything discussed so far. Acknowledge relevant history where appropriate."
 
+  // voiceSamples comes from the last N sent emails and barely changes between calls in a
+  // session — put it in its own cached block so repeated drafts don't re-pay for it.
   const message = await createClaudeMessageWithFallback(
     (params) => client.messages.create(params),
     {
@@ -190,17 +192,23 @@ export async function draftReply(
       messages: [
         {
           role: "user",
-          content: `${scopeInstruction}
-
-Study this person's writing style from past emails they sent:
-
-${voiceSamples}
+          content: [
+            {
+              type: "text",
+              text: `Study this person's writing style from past emails they sent:\n\n${voiceSamples}`,
+              cache_control: { type: "ephemeral" },
+            },
+            {
+              type: "text",
+              text: `${scopeInstruction}
 ${categoryContext ? `\nFor additional context, here are some other related emails:\n${categoryContext}\n` : ""}
 ${extraContext ? `\nThe user wants this reply to specifically cover: ${extraContext}\n` : ""}
 Now write the reply. Match their tone, length, and style exactly — use similar greetings, sign-offs, and phrasing patterns. Only return the email body text, no subject line.
 
 ${scope === "latest" ? "Latest message to reply to" : "Full conversation thread"}:
 ${threadHistory}`,
+            },
+          ],
         },
       ],
     }
@@ -239,16 +247,23 @@ export async function draftNewEmail(
       messages: [
         {
           role: "user",
-          content: `You are helping someone write an email. Study their writing style from these past emails they sent:
-
-${voiceSamples}
-${categoryContext ? `\nFor topical context, here are some recent related emails:\n${categoryContext}\n` : ""}
+          content: [
+            {
+              type: "text",
+              text: `You are helping someone write an email. Study their writing style from these past emails they sent:\n\n${voiceSamples}`,
+              cache_control: { type: "ephemeral" },
+            },
+            {
+              type: "text",
+              text: `${categoryContext ? `\nFor topical context, here are some recent related emails:\n${categoryContext}\n` : ""}
 Write a new email with:
 - To: ${to}
 - Subject: ${subject}
 ${context ? `- Context/notes: ${context}` : ""}
 
 Match their tone, length, and style. Only return the email body text, no subject line.`,
+            },
+          ],
         },
       ],
     }
@@ -331,22 +346,37 @@ Request: ${naturalLanguageQuery}`,
   return message.content[0].type === "text" ? message.content[0].text.trim() : naturalLanguageQuery
 }
 
+// Hard safety cap on top of whatever the caller already narrowed down to (e.g. via
+// embeddings ranking) — no single call should ever ship the old 40-thread/20000-char blast.
+const MAX_SEARCH_THREADS = 15
+const MAX_CHARS_PER_MESSAGE = 4000
+
 export async function searchCategoryThreads(
   apiKey: string,
   threads: Thread[],
-  query: string
+  query: string,
+  preRanked = false
 ): Promise<string> {
   const client = getClient(apiKey)
 
   const threadSummaries = threads
-    .slice(0, 40)
+    .slice(0, MAX_SEARCH_THREADS)
     .map((t) => {
       const msgs = t.messages
-        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, 20000)}`)
+        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, MAX_CHARS_PER_MESSAGE)}`)
         .join("\n")
       return `Subject: ${t.subject}\n${msgs}`
     })
     .join("\n\n===\n\n")
+
+  const threadsBlock: ClaudeContentBlock = {
+    type: "text",
+    text: `Email threads:\n${threadSummaries}`,
+    // Only cache when the thread list is stable across queries (i.e. not re-ranked per
+    // query by embeddings) — otherwise every query ships a different set of threads and
+    // the cache would never hit, just pay the write premium for nothing.
+    ...(preRanked ? {} : { cache_control: { type: "ephemeral" as const } }),
+  }
 
   const message = await createClaudeMessageWithFallback(
     (params) => client.messages.create(params),
@@ -355,14 +385,17 @@ export async function searchCategoryThreads(
       messages: [
         {
           role: "user",
-          content: `The user is searching within a set of their email conversations for: "${query}"
+          content: [
+            threadsBlock,
+            {
+              type: "text",
+              text: `The user is searching within a set of their email conversations for: "${query}"
 
-Based on the email threads below, write a helpful response. If the request asks to find/filter/list conversations matching certain criteria (e.g. numeric thresholds, specific terms), go through the threads one by one, check each against every criterion, and list each match by name/subject along with the specific values or quotes that satisfy the criteria. If a thread doesn't have enough information to evaluate a criterion, note that rather than guessing. Otherwise, surface the most relevant conversations and answer any question that was asked. If nothing matches, say so plainly.
-
-Email threads:
-${threadSummaries}
+Based on the email threads above, write a helpful response. If the request asks to find/filter/list conversations matching certain criteria (e.g. numeric thresholds, specific terms), go through the threads one by one, check each against every criterion, and list each match by name/subject along with the specific values or quotes that satisfy the criteria. If a thread doesn't have enough information to evaluate a criterion, note that rather than guessing. Otherwise, surface the most relevant conversations and answer any question that was asked. If nothing matches, say so plainly.
 
 Write a clear response in plain prose, using a short list for multiple matches.`,
+            },
+          ],
         },
       ],
     }

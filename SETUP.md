@@ -68,6 +68,17 @@ Your key is stored only in your browser — it never leaves your machine.
 
 ---
 
+## Optional — faster/cheaper category search with embeddings
+
+Category search (asking a question across all emails in a category) can send a lot of email
+text to Claude. Set a `VOYAGE_API_KEY` environment variable (get one at
+[voyageai.com](https://www.voyageai.com)) and the app will first rank threads by semantic
+similarity to your question, then only send the most relevant ones to Claude — instead of
+sending everything. This is entirely optional; without it, category search still works, just
+with a fixed cap on how many threads/characters are sent per request.
+
+---
+
 ## Using the app
 
 | Page | What it does |

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getThread } from "@/lib/gmail"
 import { summarizeThread } from "@/lib/claude"
+import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
+
+const SUMMARY_CACHE_PREFIX = "summaries"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -21,7 +24,17 @@ export async function POST(req: NextRequest) {
 
   const thread = await getThread(session.accessToken, threadId)
   const messageCount: number | "all" = count === "all" ? "all" : Number(count)
+
+  const userEmail = session.user?.email ?? "unknown"
+  // thread.messageCount in the key means a new message in the thread invalidates the cache.
+  const cacheKey = responseCacheKey(["thread-summary", threadId, messageCount, thread.messageCount])
+  const cached = getCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey)
+  if (cached) {
+    return NextResponse.json({ summary: cached })
+  }
+
   const summary = await summarizeThread(apiKey, thread, messageCount)
+  setCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey, summary)
 
   return NextResponse.json({ summary })
 }
