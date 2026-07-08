@@ -105,13 +105,14 @@ export async function categorizeThreads(
       ? `Assign each conversation to one of these existing categories: ${existingCategories.map((c) => `"${c}"`).join(", ")}. Only create a new category if a conversation truly doesn't fit any existing one.`
       : `First decide what 5-8 category names make sense for these conversations. Use names specific to this inbox (e.g. "Bank Alerts", "Family", "Work") rather than generic buckets.`
 
-  const response = await client.messages.create({
-    model: CATEGORIZATION_MODEL,
-    max_tokens: 8192,
-    messages: [
-      {
-        role: "user",
-        content: `Categorize these email conversations.
+  const response = await createClaudeMessageWithFallback(
+    (params) => client.messages.create(params),
+    {
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: `Categorize these email conversations.
 
 ${categoryInstruction}
 
@@ -122,9 +123,10 @@ ${threadList}
 
 You MUST respond with ONLY a valid JSON object — no explanation, no markdown, no code fences. Exactly this shape:
 {"categories":["Cat1","Cat2"],"assignments":[{"index":0,"category":"Cat1","tags":["tag1"],"oneLiner":"Summary here."},{"index":1,"category":"Cat2","tags":["tag2"],"oneLiner":"Another summary."}]}`,
-      },
-    ],
-  })
+        },
+      ],
+    }
+  )
 
   const rawText = response.content[0]?.type === "text" ? response.content[0].text.trim() : ""
 
