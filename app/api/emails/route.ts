@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { listThreadIds, fetchThreadsByIds } from "@/lib/gmail"
 import { categorizeThreads } from "@/lib/claude"
+import { classifyThreadsByEmbedding } from "@/lib/embeddings"
 import { readCacheMap, writeCacheMap } from "@/lib/cache"
 import { CategorizedThread } from "@/types"
 
@@ -45,10 +46,25 @@ export async function GET(req: NextRequest) {
       const newThreads = await fetchThreadsByIds(session.accessToken, newIds)
       const existingCategories = [...new Set(Object.values(cached).map((t) => t.category))]
       try {
-        const categorized = await categorizeThreads(apiKey, newThreads, existingCategories)
-        for (const thread of categorized) {
+        // Pre-classify by embedding similarity — avoids Claude for threads that look like
+        // ones we've already categorized. Falls back silently if Voyage isn't configured.
+        const cachedThreadsList = Object.values(cached) as CategorizedThread[]
+        const { certain: bySimilarity, uncertain: toClassify } = await classifyThreadsByEmbedding(
+          userEmail,
+          newThreads,
+          cachedThreadsList
+        )
+        for (const thread of bySimilarity) {
           cached[thread.id] = thread
         }
+
+        if (toClassify.length > 0) {
+          const categorized = await categorizeThreads(apiKey, toClassify, existingCategories)
+          for (const thread of categorized) {
+            cached[thread.id] = thread
+          }
+        }
+
         writeCacheMap<CategorizedThread>(userEmail, cached)
       } catch (err: any) {
         categorizationError = err?.message || String(err)

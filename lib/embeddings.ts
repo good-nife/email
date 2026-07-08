@@ -1,4 +1,4 @@
-import { Thread } from "@/types"
+import { CategorizedThread, Thread } from "@/types"
 import { readCacheMap, writeCacheMap } from "./cache"
 
 const VOYAGE_MODEL = "voyage-3.5"
@@ -87,5 +87,75 @@ export async function rankThreadsByRelevance(
   } catch (err) {
     console.error("[embeddings] ranking failed, falling back to unranked threads:", err)
     return { threads: threads.slice(0, topK), ranked: false }
+  }
+}
+
+const SIMILARITY_THRESHOLD = 0.85
+
+/**
+ * Pre-classifies new threads by embedding similarity against already-categorized threads,
+ * avoiding Claude calls for threads that closely resemble ones we've seen before.
+ *
+ * On the first call it also bootstraps embeddings for any already-categorized threads that
+ * don't have them yet, so the reference set is immediately useful.
+ *
+ * Falls back to returning all threads as "uncertain" (→ Claude) if Voyage isn't configured
+ * or anything goes wrong.
+ */
+export async function classifyThreadsByEmbedding(
+  userEmail: string,
+  newThreads: Thread[],
+  categorizedRef: CategorizedThread[],
+  threshold = SIMILARITY_THRESHOLD
+): Promise<{ certain: CategorizedThread[]; uncertain: Thread[] }> {
+  if (!embeddingsConfigured() || newThreads.length === 0) {
+    return { certain: [], uncertain: newThreads }
+  }
+
+  try {
+    const embCache = readCacheMap<number[]>(userEmail, EMBEDDING_CACHE_PREFIX)
+    const embeddings = embCache ? { ...embCache.emails } : {}
+
+    // Bootstrap: embed any already-categorized threads that are missing vectors
+    const missingRefs = categorizedRef.filter((t) => !embeddings[t.id])
+    if (missingRefs.length > 0) {
+      const vectors = await embed(missingRefs.map(threadEmbeddingText), "document")
+      missingRefs.forEach((t, i) => { embeddings[t.id] = vectors[i] })
+    }
+
+    // Embed new threads and store everything
+    const newVectors = await embed(newThreads.map(threadEmbeddingText), "document")
+    newThreads.forEach((t, i) => { embeddings[t.id] = newVectors[i] })
+    writeCacheMap(userEmail, embeddings, EMBEDDING_CACHE_PREFIX)
+
+    // Build reference set: categorized threads that now have embeddings
+    const refs = categorizedRef
+      .filter((t) => embeddings[t.id])
+      .map((t) => ({ category: t.category, tags: t.tags, embedding: embeddings[t.id] }))
+
+    if (refs.length === 0) return { certain: [], uncertain: newThreads }
+
+    const certain: CategorizedThread[] = []
+    const uncertain: Thread[] = []
+
+    newThreads.forEach((thread, i) => {
+      const vec = newVectors[i]
+      let bestSim = -1
+      let bestRef: (typeof refs)[0] | null = null
+      for (const ref of refs) {
+        const sim = cosineSimilarity(vec, ref.embedding)
+        if (sim > bestSim) { bestSim = sim; bestRef = ref }
+      }
+      if (bestSim >= threshold && bestRef) {
+        certain.push({ ...thread, category: bestRef.category, tags: bestRef.tags ?? [] })
+      } else {
+        uncertain.push(thread)
+      }
+    })
+
+    return { certain, uncertain }
+  } catch (err) {
+    console.error("[embeddings] classifyThreadsByEmbedding failed, falling back to Claude:", err)
+    return { certain: [], uncertain: newThreads }
   }
 }
