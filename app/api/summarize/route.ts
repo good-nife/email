@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { getThread } from "@/lib/gmail"
 import { summarizeThread } from "@/lib/claude"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
+import { trackUsage } from "@/lib/user"
 
 const SUMMARY_CACHE_PREFIX = "summaries"
 
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
 
   const summary = await summarizeThread(apiKey, thread, messageCount)
   setCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey, summary)
+  void trackUsage(userEmail, "summary")
 
   return NextResponse.json({ summary })
 }

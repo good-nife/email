@@ -4,6 +4,7 @@ import { listThreadIds, fetchThreadsByIds } from "@/lib/gmail"
 import { categorizeThreads } from "@/lib/claude"
 import { classifyThreadsByEmbedding } from "@/lib/embeddings"
 import { readCacheMap, writeCacheMap } from "@/lib/cache"
+import { getOrCreateUser } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 export async function GET(req: NextRequest) {
@@ -25,6 +26,8 @@ export async function GET(req: NextRequest) {
 
   const userEmail = session.user?.email ?? "unknown"
   const force = req.nextUrl.searchParams.get("force") === "true"
+
+  void getOrCreateUser(userEmail)
 
   try {
     const currentIds = await listThreadIds(session.accessToken, 40)

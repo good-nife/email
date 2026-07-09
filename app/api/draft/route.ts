@@ -4,6 +4,7 @@ import { getThread, getSentEmails } from "@/lib/gmail"
 import { draftReply, draftNewEmail } from "@/lib/claude"
 import { readCacheMap } from "@/lib/cache"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
+import { trackUsage } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 const DRAFT_CACHE_PREFIX = "drafts"
@@ -60,8 +61,10 @@ export async function POST(req: NextRequest) {
 
     draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full", signature ?? "")
     setCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey, draft)
+    void trackUsage(userEmail, "draft")
   } else {
     draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads, signature ?? "")
+    void trackUsage(userEmail, "draft")
   }
 
   return NextResponse.json({ draft })

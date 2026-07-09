@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { searchThreads } from "@/lib/gmail"
 import { summarizeCorrespondence, translateToGmailQuery } from "@/lib/claude"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
+import { trackUsage } from "@/lib/user"
 
 const CORRESPONDENCE_CACHE_PREFIX = "correspondence"
 
@@ -41,5 +42,6 @@ export async function POST(req: NextRequest) {
 
   const summary = await summarizeCorrespondence(apiKey, threads, query)
   setCachedResponse(userEmail, CORRESPONDENCE_CACHE_PREFIX, cacheKey, summary)
+  void trackUsage(userEmail, "search")
   return NextResponse.json({ threads, summary, gmailQuery })
 }

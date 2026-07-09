@@ -4,6 +4,7 @@ import { searchCategoryThreads } from "@/lib/claude"
 import { readCacheMap } from "@/lib/cache"
 import { rankThreadsByRelevance } from "@/lib/embeddings"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
+import { trackUsage } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 const TOP_K_THREADS = 15
@@ -58,5 +59,6 @@ export async function POST(req: NextRequest) {
 
   const summary = await searchCategoryThreads(apiKey, relevantThreads, query, ranked)
   setCachedResponse(userEmail, RESPONSE_CACHE_PREFIX, cacheKey, summary)
+  void trackUsage(userEmail, "category-search")
   return NextResponse.json({ summary })
 }
