@@ -108,7 +108,7 @@ export async function categorizeThreads(
   const response = await createClaudeMessageWithFallback(
     (params) => client.messages.create(params),
     {
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [
         {
           role: "user",

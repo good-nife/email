@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   void getOrCreateUser(userEmail)
 
   try {
-    const currentIds = await listThreadIds(session.accessToken, 40)
+    const currentIds = await listThreadIds(session.accessToken, 200)
 
     const cacheData = force ? null : await readThreadCache(userEmail)
     let cached: Record<string, CategorizedThread> = cacheData ? { ...cacheData.emails } : {}
