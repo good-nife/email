@@ -79,17 +79,19 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ threads, cachedAt: updatedAt, newCount: newIds.length, categorizationError })
   } catch (err: any) {
-    console.error("[/api/emails]", err?.message ?? err)
+    const msg = err?.message || String(err)
+    console.error("[/api/emails]", msg)
 
-    const cached = await readThreadCache(userEmail)
-    if (cached && !force) {
-      const threads = Object.values(cached.emails)
-      return NextResponse.json({ threads, cachedAt: cached.updatedAt, newCount: 0 })
+    try {
+      const cached = await readThreadCache(userEmail)
+      if (cached && !force) {
+        const threads = Object.values(cached.emails)
+        return NextResponse.json({ threads, cachedAt: cached.updatedAt, newCount: 0 })
+      }
+    } catch (cacheErr: any) {
+      console.error("[/api/emails] cache fallback also failed:", cacheErr?.message)
     }
 
-    return NextResponse.json(
-      { error: err?.message || "Failed to load emails" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: msg || "Failed to load emails" }, { status: 500 })
   }
 }
