@@ -4,7 +4,7 @@ import { listThreadIds, fetchThreadsByIds } from "@/lib/gmail"
 import { categorizeThreads } from "@/lib/claude"
 import { classifyThreadsByEmbedding } from "@/lib/embeddings"
 import { readThreadCache, writeThreadCache, clearThreadCache } from "@/lib/cache"
-import { getOrCreateUser } from "@/lib/user"
+import { getOrCreateUser, trackUsage } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 export async function GET(req: NextRequest) {
@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
           for (const thread of categorized) {
             cached[thread.id] = thread
           }
+          void trackUsage(userEmail, "categorize")
         }
 
         await writeThreadCache(userEmail, cached)
