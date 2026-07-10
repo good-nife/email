@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getThread, getSentEmails } from "@/lib/gmail"
 import { draftReply, draftNewEmail } from "@/lib/claude"
-import { readCacheMap } from "@/lib/cache"
+import { readThreadCache } from "@/lib/cache"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
 import { trackUsage } from "@/lib/user"
 import { CategorizedThread } from "@/types"
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   let categoryThreads: CategorizedThread[] = []
   if (category) {
-    const cacheData = readCacheMap<CategorizedThread>(userEmail)
+    const cacheData = await readThreadCache(userEmail)
     if (cacheData) {
       categoryThreads = Object.values(cacheData.emails).filter((t) => t.category === category)
     }
@@ -38,13 +38,10 @@ export async function POST(req: NextRequest) {
 
   if (threadId) {
     let thread = await getThread(session.accessToken, threadId)
-    // "latest" scope: only use the last message for context
     if (scope === "latest") {
       thread = { ...thread, messages: thread.messages.slice(-1) }
     }
 
-    // Cache by thread + the params that affect the output. thread.messageCount is part of
-    // the key so a new reply in the thread naturally invalidates the cached draft.
     const cacheKey = responseCacheKey([
       "reply",
       threadId,
@@ -54,13 +51,13 @@ export async function POST(req: NextRequest) {
       signature ?? "",
       thread.messageCount,
     ])
-    const cached = getCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey)
+    const cached = await getCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey)
     if (cached) {
       return NextResponse.json({ draft: cached })
     }
 
     draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full", signature ?? "")
-    setCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey, draft)
+    await setCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey, draft)
     void trackUsage(userEmail, "draft")
   } else {
     draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads, signature ?? "")

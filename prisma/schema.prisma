@@ -27,3 +27,44 @@ model UsageEvent {
 
   @@index([userId, action, createdAt])
 }
+
+model ThreadCategory {
+  id           String   @id @default(cuid())
+  userEmail    String
+  threadId     String
+  subject      String
+  participants String[]
+  snippet      String
+  lastDate     String
+  isRead       Boolean  @default(true)
+  messageCount Int      @default(1)
+  category     String
+  tags         String[]
+  oneLiner     String?
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userEmail, threadId])
+  @@index([userEmail])
+}
+
+model ResponseCache {
+  id        String   @id @default(cuid())
+  userEmail String
+  prefix    String
+  cacheKey  String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([userEmail, prefix, cacheKey])
+}
+
+model Embedding {
+  id        String   @id @default(cuid())
+  userEmail String
+  threadId  String
+  vector    Float[]
+  updatedAt DateTime @updatedAt
+
+  @@unique([userEmail, threadId])
+  @@index([userEmail])
+}

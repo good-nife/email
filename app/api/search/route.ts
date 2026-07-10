@@ -35,13 +35,13 @@ export async function POST(req: NextRequest) {
     query,
     threads.map((t) => `${t.id}:${t.messageCount}`).sort().join(","),
   ])
-  const cached = getCachedResponse(userEmail, CORRESPONDENCE_CACHE_PREFIX, cacheKey)
+  const cached = await getCachedResponse(userEmail, CORRESPONDENCE_CACHE_PREFIX, cacheKey)
   if (cached) {
     return NextResponse.json({ threads, summary: cached, gmailQuery })
   }
 
   const summary = await summarizeCorrespondence(apiKey, threads, query)
-  setCachedResponse(userEmail, CORRESPONDENCE_CACHE_PREFIX, cacheKey, summary)
+  await setCachedResponse(userEmail, CORRESPONDENCE_CACHE_PREFIX, cacheKey, summary)
   void trackUsage(userEmail, "search")
   return NextResponse.json({ threads, summary, gmailQuery })
 }

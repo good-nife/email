@@ -3,7 +3,7 @@ import { auth } from "@/auth"
 import { listThreadIds, fetchThreadsByIds } from "@/lib/gmail"
 import { categorizeThreads } from "@/lib/claude"
 import { classifyThreadsByEmbedding } from "@/lib/embeddings"
-import { readCacheMap, writeCacheMap } from "@/lib/cache"
+import { readThreadCache, writeThreadCache, clearThreadCache } from "@/lib/cache"
 import { getOrCreateUser } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
@@ -32,12 +32,13 @@ export async function GET(req: NextRequest) {
   try {
     const currentIds = await listThreadIds(session.accessToken, 40)
 
-    const cacheData = force ? null : readCacheMap<CategorizedThread>(userEmail)
-    let cached = cacheData ? { ...cacheData.emails } : {}
+    const cacheData = force ? null : await readThreadCache(userEmail)
+    let cached: Record<string, CategorizedThread> = cacheData ? { ...cacheData.emails } : {}
 
     // If every cached thread is "Other", the previous categorization run failed — clear it
     const cachedValues = Object.values(cached)
     if (cachedValues.length > 0 && cachedValues.every((t) => t.category === "Other")) {
+      await clearThreadCache(userEmail)
       cached = {}
     }
 
@@ -49,8 +50,6 @@ export async function GET(req: NextRequest) {
       const newThreads = await fetchThreadsByIds(session.accessToken, newIds)
       const existingCategories = [...new Set(Object.values(cached).map((t) => t.category))]
       try {
-        // Pre-classify by embedding similarity — avoids Claude for threads that look like
-        // ones we've already categorized. Falls back silently if Voyage isn't configured.
         const cachedThreadsList = Object.values(cached) as CategorizedThread[]
         const { certain: bySimilarity, uncertain: toClassify } = await classifyThreadsByEmbedding(
           userEmail,
@@ -68,7 +67,7 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        writeCacheMap<CategorizedThread>(userEmail, cached)
+        await writeThreadCache(userEmail, cached)
       } catch (err: any) {
         categorizationError = err?.message || String(err)
         console.error("[/api/emails] categorization failed:", categorizationError)
@@ -82,7 +81,7 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     console.error("[/api/emails]", err?.message ?? err)
 
-    const cached = readCacheMap<CategorizedThread>(userEmail)
+    const cached = await readThreadCache(userEmail)
     if (cached && !force) {
       const threads = Object.values(cached.emails)
       return NextResponse.json({ threads, cachedAt: cached.updatedAt, newCount: 0 })

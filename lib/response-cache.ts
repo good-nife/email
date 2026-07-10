@@ -1,19 +1,21 @@
 import crypto from "crypto"
-import { readCacheMap, writeCacheMap } from "./cache"
+import { prisma } from "./prisma"
 
-/** Builds a stable cache key from the pieces that determine a Claude response's output. */
 export function responseCacheKey(parts: (string | number | undefined)[]): string {
   return crypto.createHash("sha256").update(parts.map((p) => p ?? "").join("|")).digest("hex")
 }
 
-export function getCachedResponse(userEmail: string, prefix: string, key: string): string | null {
-  const cache = readCacheMap<string>(userEmail, prefix)
-  return cache?.emails[key] ?? null
+export async function getCachedResponse(userEmail: string, prefix: string, key: string): Promise<string | null> {
+  const row = await prisma.responseCache.findUnique({
+    where: { userEmail_prefix_cacheKey: { userEmail, prefix, cacheKey: key } },
+  })
+  return row?.value ?? null
 }
 
-export function setCachedResponse(userEmail: string, prefix: string, key: string, value: string): void {
-  const cache = readCacheMap<string>(userEmail, prefix)
-  const data = cache ? { ...cache.emails } : {}
-  data[key] = value
-  writeCacheMap(userEmail, data, prefix)
+export async function setCachedResponse(userEmail: string, prefix: string, key: string, value: string): Promise<void> {
+  await prisma.responseCache.upsert({
+    where: { userEmail_prefix_cacheKey: { userEmail, prefix, cacheKey: key } },
+    update: { value },
+    create: { userEmail, prefix, cacheKey: key, value },
+  })
 }

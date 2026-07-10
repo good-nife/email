@@ -364,9 +364,9 @@ export async function searchCategoryThreads(
   const threadSummaries = threads
     .slice(0, MAX_SEARCH_THREADS)
     .map((t) => {
-      const msgs = t.messages
-        .map((m) => `[${m.from}]: ${m.body.trim().slice(0, MAX_CHARS_PER_MESSAGE)}`)
-        .join("\n")
+      const msgs = t.messages.length > 0
+        ? t.messages.map((m) => `[${m.from}]: ${m.body.trim().slice(0, MAX_CHARS_PER_MESSAGE)}`).join("\n")
+        : `Preview: ${t.snippet}`
       return `Subject: ${t.subject}\n${msgs}`
     })
     .join("\n\n===\n\n")

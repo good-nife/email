@@ -1,8 +1,8 @@
 import { CategorizedThread, Thread } from "@/types"
-import { readCacheMap, writeCacheMap } from "./cache"
+import { prisma } from "./prisma"
 
 const VOYAGE_MODEL = "voyage-3.5"
-const EMBEDDING_CACHE_PREFIX = "embeddings"
+const SIMILARITY_THRESHOLD = 0.85
 
 export function embeddingsConfigured(): boolean {
   return Boolean(process.env.VOYAGE_API_KEY)
@@ -30,9 +30,7 @@ async function embed(inputs: string[], inputType: "query" | "document"): Promise
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0
-  let normA = 0
-  let normB = 0
+  let dot = 0, normA = 0, normB = 0
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i]
     normA += a[i] * a[i]
@@ -46,12 +44,25 @@ function threadEmbeddingText(t: Thread): string {
   return `${t.subject}\n${t.snippet}`.slice(0, 2000)
 }
 
-/**
- * Ranks threads by semantic similarity to the query using cached Voyage AI embeddings,
- * so downstream Claude calls only need the top-K most relevant threads instead of the
- * full set. Falls back to returning the first `topK` threads unchanged if Voyage isn't
- * configured or there aren't enough threads to bother ranking.
- */
+async function getStoredEmbeddings(userEmail: string): Promise<Record<string, number[]>> {
+  const rows = await prisma.embedding.findMany({ where: { userEmail } })
+  const result: Record<string, number[]> = {}
+  for (const row of rows) result[row.threadId] = row.vector
+  return result
+}
+
+async function saveEmbeddings(userEmail: string, newEmbeddings: Record<string, number[]>): Promise<void> {
+  await Promise.all(
+    Object.entries(newEmbeddings).map(([threadId, vector]) =>
+      prisma.embedding.upsert({
+        where: { userEmail_threadId: { userEmail, threadId } },
+        update: { vector },
+        create: { userEmail, threadId, vector },
+      })
+    )
+  )
+}
+
 export async function rankThreadsByRelevance(
   userEmail: string,
   threads: Thread[],
@@ -63,22 +74,20 @@ export async function rankThreadsByRelevance(
   }
 
   try {
-    const cache = readCacheMap<number[]>(userEmail, EMBEDDING_CACHE_PREFIX)
-    const cached = cache ? { ...cache.emails } : {}
+    const stored = await getStoredEmbeddings(userEmail)
+    const missing = threads.filter((t) => !stored[t.id])
 
-    const missing = threads.filter((t) => !cached[t.id])
     if (missing.length > 0) {
       const vectors = await embed(missing.map(threadEmbeddingText), "document")
-      missing.forEach((t, i) => {
-        cached[t.id] = vectors[i]
-      })
-      writeCacheMap(userEmail, cached, EMBEDDING_CACHE_PREFIX)
+      const newEmbeddings: Record<string, number[]> = {}
+      missing.forEach((t, i) => { newEmbeddings[t.id] = vectors[i]; stored[t.id] = vectors[i] })
+      await saveEmbeddings(userEmail, newEmbeddings)
     }
 
     const [queryVector] = await embed([query], "query")
 
     const ranked = threads
-      .map((t) => ({ thread: t, score: cosineSimilarity(queryVector, cached[t.id]) }))
+      .map((t) => ({ thread: t, score: cosineSimilarity(queryVector, stored[t.id]) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, topK)
       .map((r) => r.thread)
@@ -90,18 +99,6 @@ export async function rankThreadsByRelevance(
   }
 }
 
-const SIMILARITY_THRESHOLD = 0.85
-
-/**
- * Pre-classifies new threads by embedding similarity against already-categorized threads,
- * avoiding Claude calls for threads that closely resemble ones we've seen before.
- *
- * On the first call it also bootstraps embeddings for any already-categorized threads that
- * don't have them yet, so the reference set is immediately useful.
- *
- * Falls back to returning all threads as "uncertain" (→ Claude) if Voyage isn't configured
- * or anything goes wrong.
- */
 export async function classifyThreadsByEmbedding(
   userEmail: string,
   newThreads: Thread[],
@@ -113,25 +110,27 @@ export async function classifyThreadsByEmbedding(
   }
 
   try {
-    const embCache = readCacheMap<number[]>(userEmail, EMBEDDING_CACHE_PREFIX)
-    const embeddings = embCache ? { ...embCache.emails } : {}
+    const stored = await getStoredEmbeddings(userEmail)
 
-    // Bootstrap: embed any already-categorized threads that are missing vectors
-    const missingRefs = categorizedRef.filter((t) => !embeddings[t.id])
+    // Bootstrap: embed any already-categorized threads missing vectors
+    const missingRefs = categorizedRef.filter((t) => !stored[t.id])
     if (missingRefs.length > 0) {
       const vectors = await embed(missingRefs.map(threadEmbeddingText), "document")
-      missingRefs.forEach((t, i) => { embeddings[t.id] = vectors[i] })
+      missingRefs.forEach((t, i) => { stored[t.id] = vectors[i] })
     }
 
-    // Embed new threads and store everything
+    // Embed new threads
     const newVectors = await embed(newThreads.map(threadEmbeddingText), "document")
-    newThreads.forEach((t, i) => { embeddings[t.id] = newVectors[i] })
-    writeCacheMap(userEmail, embeddings, EMBEDDING_CACHE_PREFIX)
+    const toSave: Record<string, number[]> = {}
+    newThreads.forEach((t, i) => { stored[t.id] = newVectors[i]; toSave[t.id] = newVectors[i] })
+    if (missingRefs.length > 0) {
+      missingRefs.forEach((t) => { toSave[t.id] = stored[t.id] })
+    }
+    await saveEmbeddings(userEmail, toSave)
 
-    // Build reference set: categorized threads that now have embeddings
     const refs = categorizedRef
-      .filter((t) => embeddings[t.id])
-      .map((t) => ({ category: t.category, tags: t.tags, embedding: embeddings[t.id] }))
+      .filter((t) => stored[t.id])
+      .map((t) => ({ category: t.category, tags: t.tags, embedding: stored[t.id] }))
 
     if (refs.length === 0) return { certain: [], uncertain: newThreads }
 

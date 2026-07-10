@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { readCacheMap, writeCacheMap } from "@/lib/cache"
-import { CategorizedThread } from "@/types"
+import { readThreadCache, writeThreadCache } from "@/lib/cache"
 
 export async function PATCH(req: NextRequest) {
   const session = await auth()
@@ -15,7 +14,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const userEmail = session.user?.email ?? "unknown"
-  const cacheData = readCacheMap<CategorizedThread>(userEmail)
+  const cacheData = await readThreadCache(userEmail)
   if (!cacheData) {
     return NextResponse.json({ error: "No cached emails yet" }, { status: 400 })
   }
@@ -27,7 +26,7 @@ export async function PATCH(req: NextRequest) {
       updated[id] = { ...thread, category: trimmed }
     }
   }
-  writeCacheMap<CategorizedThread>(userEmail, updated)
+  await writeThreadCache(userEmail, updated)
 
   return NextResponse.json({ ok: true })
 }

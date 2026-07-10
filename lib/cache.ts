@@ -1,46 +1,74 @@
-import fs from "fs"
-import path from "path"
+import { prisma } from "./prisma"
+import { CategorizedThread } from "@/types"
 
-const CACHE_DIR = process.env.DATA_DIR
-  ? path.join(process.env.DATA_DIR, ".cache")
-  : path.join(process.cwd(), ".cache")
-
-function ensureDir() {
-  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true })
-}
-
-function cacheFile(userEmail: string, prefix: string) {
-  const safe = userEmail.replace(/[^a-z0-9]/gi, "_")
-  return path.join(CACHE_DIR, `${prefix}-${safe}.json`)
-}
-
-export interface CacheFile<T> {
+export interface ThreadCacheData {
+  emails: Record<string, CategorizedThread>
   updatedAt: string
-  emails: Record<string, T>
 }
 
-export function readCacheMap<T>(userEmail: string, prefix = "threads"): CacheFile<T> | null {
-  try {
-    const file = cacheFile(userEmail, prefix)
-    if (!fs.existsSync(file)) return null
-    const raw = JSON.parse(fs.readFileSync(file, "utf-8"))
-    // Migrate old array-based format
-    if (Array.isArray(raw.emails)) {
-      const map: Record<string, T> = {}
-      for (const e of raw.emails) map[e.id] = e
-      return { updatedAt: raw.cachedAt ?? new Date().toISOString(), emails: map }
+export async function readThreadCache(userEmail: string): Promise<ThreadCacheData | null> {
+  const rows = await prisma.threadCategory.findMany({ where: { userEmail } })
+  if (rows.length === 0) return null
+
+  const emails: Record<string, CategorizedThread> = {}
+  for (const row of rows) {
+    emails[row.threadId] = {
+      id: row.threadId,
+      subject: row.subject,
+      participants: row.participants,
+      snippet: row.snippet,
+      lastDate: row.lastDate,
+      isRead: row.isRead,
+      messageCount: row.messageCount,
+      messages: [],
+      category: row.category,
+      tags: row.tags,
+      oneLiner: row.oneLiner ?? undefined,
     }
-    return raw as CacheFile<T>
-  } catch {
-    return null
   }
+
+  const updatedAt = rows.reduce((latest, r) => {
+    const t = r.updatedAt.toISOString()
+    return t > latest ? t : latest
+  }, new Date(0).toISOString())
+
+  return { emails, updatedAt }
 }
 
-export function writeCacheMap<T>(userEmail: string, data: Record<string, T>, prefix = "threads"): void {
-  ensureDir()
-  fs.writeFileSync(
-    cacheFile(userEmail, prefix),
-    JSON.stringify({ updatedAt: new Date().toISOString(), emails: data }),
-    "utf-8"
+export async function writeThreadCache(userEmail: string, data: Record<string, CategorizedThread>): Promise<void> {
+  await Promise.all(
+    Object.values(data).map((thread) =>
+      prisma.threadCategory.upsert({
+        where: { userEmail_threadId: { userEmail, threadId: thread.id } },
+        update: {
+          subject: thread.subject,
+          participants: thread.participants,
+          snippet: thread.snippet,
+          lastDate: thread.lastDate,
+          isRead: thread.isRead,
+          messageCount: thread.messageCount,
+          category: thread.category,
+          tags: thread.tags,
+          oneLiner: thread.oneLiner,
+        },
+        create: {
+          userEmail,
+          threadId: thread.id,
+          subject: thread.subject,
+          participants: thread.participants,
+          snippet: thread.snippet,
+          lastDate: thread.lastDate,
+          isRead: thread.isRead,
+          messageCount: thread.messageCount,
+          category: thread.category,
+          tags: thread.tags,
+          oneLiner: thread.oneLiner,
+        },
+      })
+    )
   )
+}
+
+export async function clearThreadCache(userEmail: string): Promise<void> {
+  await prisma.threadCategory.deleteMany({ where: { userEmail } })
 }

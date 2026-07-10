@@ -27,15 +27,14 @@ export async function POST(req: NextRequest) {
   const messageCount: number | "all" = count === "all" ? "all" : Number(count)
 
   const userEmail = session.user?.email ?? "unknown"
-  // thread.messageCount in the key means a new message in the thread invalidates the cache.
   const cacheKey = responseCacheKey(["thread-summary", threadId, messageCount, thread.messageCount])
-  const cached = getCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey)
+  const cached = await getCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey)
   if (cached) {
     return NextResponse.json({ summary: cached })
   }
 
   const summary = await summarizeThread(apiKey, thread, messageCount)
-  setCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey, summary)
+  await setCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey, summary)
   void trackUsage(userEmail, "summary")
 
   return NextResponse.json({ summary })

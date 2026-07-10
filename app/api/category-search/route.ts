@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { searchCategoryThreads } from "@/lib/claude"
-import { readCacheMap } from "@/lib/cache"
+import { readThreadCache } from "@/lib/cache"
 import { rankThreadsByRelevance } from "@/lib/embeddings"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
 import { trackUsage } from "@/lib/user"
@@ -27,14 +27,14 @@ export async function POST(req: NextRequest) {
   }
 
   const userEmail = session.user?.email ?? "unknown"
-  const cacheData = readCacheMap<CategorizedThread>(userEmail)
+  const cacheData = await readThreadCache(userEmail)
   if (!cacheData) {
     return NextResponse.json({ error: "No cached emails yet — load your inbox first." }, { status: 400 })
   }
 
   const threads = Object.values(cacheData.emails).filter(
     (t) => !category || category === "All" || t.category === category
-  )
+  ) as CategorizedThread[]
 
   if (threads.length === 0) {
     return NextResponse.json({ summary: "No emails found in this category." })
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     query,
     threads.map((t) => `${t.id}:${t.messageCount}`).sort().join(","),
   ])
-  const cached = getCachedResponse(userEmail, RESPONSE_CACHE_PREFIX, cacheKey)
+  const cached = await getCachedResponse(userEmail, RESPONSE_CACHE_PREFIX, cacheKey)
   if (cached) {
     return NextResponse.json({ summary: cached })
   }
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   )
 
   const summary = await searchCategoryThreads(apiKey, relevantThreads, query, ranked)
-  setCachedResponse(userEmail, RESPONSE_CACHE_PREFIX, cacheKey, summary)
+  await setCachedResponse(userEmail, RESPONSE_CACHE_PREFIX, cacheKey, summary)
   void trackUsage(userEmail, "category-search")
   return NextResponse.json({ summary })
 }
