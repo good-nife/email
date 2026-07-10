@@ -9,6 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Fallback keeps prisma generate happy at build time when DATABASE_URL isn't set yet
+    url: process.env["DATABASE_URL"] ?? "postgresql://localhost:5432/placeholder",
   },
 });
