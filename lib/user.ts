@@ -2,6 +2,13 @@ import { prisma } from "./prisma"
 
 export type Plan = "free" | "pro"
 
+export type UsageOptions = {
+  provider?: string
+  model?: string
+  inputTokens?: number
+  outputTokens?: number
+}
+
 export async function getOrCreateUser(email: string) {
   return prisma.user.upsert({
     where: { email },
@@ -20,9 +27,18 @@ export async function getUserPlan(email: string): Promise<Plan> {
   return "free"
 }
 
-export async function trackUsage(email: string, action: string) {
+export async function trackUsage(email: string, action: string, options?: UsageOptions) {
   const user = await getOrCreateUser(email)
-  await prisma.usageEvent.create({ data: { userId: user.id, action } })
+  await prisma.usageEvent.create({
+    data: {
+      userId: user.id,
+      action,
+      provider: options?.provider ?? "anthropic",
+      model: options?.model,
+      inputTokens: options?.inputTokens,
+      outputTokens: options?.outputTokens,
+    },
+  })
 }
 
 export async function getDailyUsageCount(email: string, action: string): Promise<number> {

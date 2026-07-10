@@ -3,7 +3,7 @@ import { auth } from "@/auth"
 import { getThread } from "@/lib/gmail"
 import { summarizeThread } from "@/lib/claude"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
-import { trackUsage } from "@/lib/user"
+import { trackUsage, UsageOptions } from "@/lib/user"
 
 const SUMMARY_CACHE_PREFIX = "summaries"
 
@@ -33,9 +33,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ summary: cached })
   }
 
-  const summary = await summarizeThread(apiKey, thread, messageCount)
+  const onUsage = (opts: UsageOptions) => void trackUsage(userEmail, "summary", opts)
+  const summary = await summarizeThread(apiKey, thread, messageCount, onUsage)
   await setCachedResponse(userEmail, SUMMARY_CACHE_PREFIX, cacheKey, summary)
-  void trackUsage(userEmail, "summary")
 
   return NextResponse.json({ summary })
 }

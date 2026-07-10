@@ -1,6 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { Category, CategorizedEmail, CategorizedThread, Email, Thread } from "@/types"
 import { createClaudeMessageWithFallback, CATEGORIZATION_MODEL, ClaudeContentBlock } from "./claude-models"
+import { UsageOptions } from "./user"
+
+type OnUsage = (opts: UsageOptions) => void
+
+function extractUsage(response: { model: string; usage: { input_tokens: number; output_tokens: number } }): UsageOptions {
+  return {
+    provider: "anthropic",
+    model: response.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+  }
+}
 
 function getClient(apiKey: string) {
   return new Anthropic({ apiKey })
@@ -88,7 +100,8 @@ Reply with JSON only, no explanation:
 export async function categorizeThreads(
   apiKey: string,
   threads: Thread[],
-  existingCategories: string[] = []
+  existingCategories: string[] = [],
+  onUsage?: OnUsage
 ): Promise<CategorizedThread[]> {
   if (threads.length === 0) return []
 
@@ -128,6 +141,8 @@ You MUST respond with ONLY a valid JSON object — no explanation, no markdown, 
     }
   )
 
+  onUsage?.(extractUsage(response))
+
   const rawText = response.content[0]?.type === "text" ? response.content[0].text.trim() : ""
 
   if (!rawText) {
@@ -161,7 +176,8 @@ export async function draftReply(
   categoryThreads: Thread[] = [],
   extraContext = "",
   scope: "latest" | "full" = "full",
-  signature = ""
+  signature = "",
+  onUsage?: OnUsage
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -216,6 +232,7 @@ ${threadHistory}`,
     }
   )
 
+  onUsage?.(extractUsage(message))
   const text = message.content[0].type === "text" ? message.content[0].text : ""
   return signature.trim() ? `${text}\n\n${signature.trim()}` : text
 }
@@ -227,7 +244,8 @@ export async function draftNewEmail(
   context: string,
   sentEmails: Email[],
   categoryThreads: Thread[] = [],
-  signature = ""
+  signature = "",
+  onUsage?: OnUsage
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -271,6 +289,7 @@ Match their tone, length, and style. Only return the email body text, no subject
     }
   )
 
+  onUsage?.(extractUsage(message))
   const text = message.content[0].type === "text" ? message.content[0].text : ""
   return signature.trim() ? `${text}\n\n${signature.trim()}` : text
 }
@@ -278,7 +297,8 @@ Match their tone, length, and style. Only return the email body text, no subject
 export async function summarizeThread(
   apiKey: string,
   thread: Thread,
-  messageCount: number | "all"
+  messageCount: number | "all",
+  onUsage?: OnUsage
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -313,12 +333,14 @@ ${formatted}`,
     }
   )
 
+  onUsage?.(extractUsage(message))
   return message.content[0].type === "text" ? message.content[0].text : ""
 }
 
 export async function translateToGmailQuery(
   apiKey: string,
-  naturalLanguageQuery: string
+  naturalLanguageQuery: string,
+  onUsage?: OnUsage
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -345,6 +367,7 @@ Request: ${naturalLanguageQuery}`,
     }
   )
 
+  onUsage?.(extractUsage(message))
   return message.content[0].type === "text" ? message.content[0].text.trim() : naturalLanguageQuery
 }
 
@@ -357,7 +380,8 @@ export async function searchCategoryThreads(
   apiKey: string,
   threads: Thread[],
   query: string,
-  preRanked = false
+  preRanked = false,
+  onUsage?: OnUsage
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -403,13 +427,15 @@ Write a clear response in plain prose, using a short list for multiple matches.`
     }
   )
 
+  onUsage?.(extractUsage(message))
   return message.content[0].type === "text" ? message.content[0].text : ""
 }
 
 export async function summarizeCorrespondence(
   apiKey: string,
   threads: Thread[],
-  personQuery: string
+  personQuery: string,
+  onUsage?: OnUsage
 ): Promise<string> {
   const client = getClient(apiKey)
 
@@ -445,5 +471,6 @@ Write a clear, concise summary in plain prose (3-5 paragraphs).`,
     }
   )
 
+  onUsage?.(extractUsage(message))
   return message.content[0].type === "text" ? message.content[0].text : ""
 }

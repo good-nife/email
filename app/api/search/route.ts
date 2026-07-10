@@ -3,7 +3,7 @@ import { auth } from "@/auth"
 import { searchThreads } from "@/lib/gmail"
 import { summarizeCorrespondence, translateToGmailQuery } from "@/lib/claude"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
-import { trackUsage } from "@/lib/user"
+import { trackUsage, UsageOptions } from "@/lib/user"
 
 const CORRESPONDENCE_CACHE_PREFIX = "correspondence"
 
@@ -23,14 +23,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 })
   }
 
-  const gmailQuery = await translateToGmailQuery(apiKey, query)
+  const userEmail = session.user?.email ?? "unknown"
+  const translateOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "search-translate", opts)
+  const gmailQuery = await translateToGmailQuery(apiKey, query, translateOnUsage)
   const threads = await searchThreads(session.accessToken, gmailQuery)
 
   if (!threads.length) {
     return NextResponse.json({ threads: [], summary: "No emails found matching that search.", gmailQuery })
   }
-
-  const userEmail = session.user?.email ?? "unknown"
   const cacheKey = responseCacheKey([
     query,
     threads.map((t) => `${t.id}:${t.messageCount}`).sort().join(","),
@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ threads, summary: cached, gmailQuery })
   }
 
-  const summary = await summarizeCorrespondence(apiKey, threads, query)
+  const searchOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "search", opts)
+  const summary = await summarizeCorrespondence(apiKey, threads, query, searchOnUsage)
   await setCachedResponse(userEmail, CORRESPONDENCE_CACHE_PREFIX, cacheKey, summary)
-  void trackUsage(userEmail, "search")
   return NextResponse.json({ threads, summary, gmailQuery })
 }

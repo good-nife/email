@@ -4,7 +4,7 @@ import { listThreadIds, fetchThreadsByIds } from "@/lib/gmail"
 import { categorizeThreads } from "@/lib/claude"
 import { classifyThreadsByEmbedding } from "@/lib/embeddings"
 import { readThreadCache, writeThreadCache, clearThreadCache } from "@/lib/cache"
-import { getOrCreateUser, trackUsage } from "@/lib/user"
+import { getOrCreateUser, trackUsage, UsageOptions } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 export async function GET(req: NextRequest) {
@@ -51,21 +51,24 @@ export async function GET(req: NextRequest) {
       const existingCategories = [...new Set(Object.values(cached).map((t) => t.category))]
       try {
         const cachedThreadsList = Object.values(cached) as CategorizedThread[]
+        const embeddingOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "classify-embedding", opts)
         const { certain: bySimilarity, uncertain: toClassify } = await classifyThreadsByEmbedding(
           userEmail,
           newThreads,
-          cachedThreadsList
+          cachedThreadsList,
+          undefined,
+          embeddingOnUsage
         )
         for (const thread of bySimilarity) {
           cached[thread.id] = thread
         }
 
         if (toClassify.length > 0) {
-          const categorized = await categorizeThreads(apiKey, toClassify, existingCategories)
+          const categorizeOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "categorize", opts)
+          const categorized = await categorizeThreads(apiKey, toClassify, existingCategories, categorizeOnUsage)
           for (const thread of categorized) {
             cached[thread.id] = thread
           }
-          void trackUsage(userEmail, "categorize")
         }
 
         await writeThreadCache(userEmail, cached)

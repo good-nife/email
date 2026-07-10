@@ -4,7 +4,7 @@ import { getThread, getSentEmails } from "@/lib/gmail"
 import { draftReply, draftNewEmail } from "@/lib/claude"
 import { readThreadCache } from "@/lib/cache"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
-import { trackUsage } from "@/lib/user"
+import { trackUsage, UsageOptions } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 const DRAFT_CACHE_PREFIX = "drafts"
@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
 
   let draft: string
 
+  const onUsage = (opts: UsageOptions) => void trackUsage(userEmail, "draft", opts)
+
   if (threadId) {
     let thread = await getThread(session.accessToken, threadId)
     if (scope === "latest") {
@@ -56,12 +58,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ draft: cached })
     }
 
-    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full", signature ?? "")
+    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full", signature ?? "", onUsage)
     await setCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey, draft)
-    void trackUsage(userEmail, "draft")
   } else {
-    draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads, signature ?? "")
-    void trackUsage(userEmail, "draft")
+    draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads, signature ?? "", onUsage)
   }
 
   return NextResponse.json({ draft })

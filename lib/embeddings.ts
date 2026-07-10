@@ -1,5 +1,8 @@
 import { CategorizedThread, Thread } from "@/types"
 import { prisma } from "./prisma"
+import { UsageOptions } from "./user"
+
+type OnUsage = (opts: UsageOptions) => void
 
 const VOYAGE_MODEL = "voyage-3.5"
 const SIMILARITY_THRESHOLD = 0.85
@@ -8,7 +11,11 @@ export function embeddingsConfigured(): boolean {
   return Boolean(process.env.VOYAGE_API_KEY)
 }
 
-async function embed(inputs: string[], inputType: "query" | "document"): Promise<number[][]> {
+async function embed(
+  inputs: string[],
+  inputType: "query" | "document",
+  onUsage?: OnUsage
+): Promise<number[][]> {
   const apiKey = process.env.VOYAGE_API_KEY
   if (!apiKey) throw new Error("VOYAGE_API_KEY not configured")
 
@@ -25,7 +32,8 @@ async function embed(inputs: string[], inputType: "query" | "document"): Promise
     throw new Error(`Voyage embeddings request failed: ${res.status} ${await res.text()}`)
   }
 
-  const data: { data: { embedding: number[]; index: number }[] } = await res.json()
+  const data: { data: { embedding: number[]; index: number }[]; usage: { total_tokens: number } } = await res.json()
+  onUsage?.({ provider: "voyage", model: VOYAGE_MODEL, inputTokens: data.usage?.total_tokens })
   return data.data.sort((a, b) => a.index - b.index).map((d) => d.embedding)
 }
 
@@ -67,7 +75,8 @@ export async function rankThreadsByRelevance(
   userEmail: string,
   threads: Thread[],
   query: string,
-  topK: number
+  topK: number,
+  onUsage?: OnUsage
 ): Promise<{ threads: Thread[]; ranked: boolean }> {
   if (!embeddingsConfigured() || threads.length <= topK) {
     return { threads: threads.slice(0, topK), ranked: false }
@@ -78,13 +87,13 @@ export async function rankThreadsByRelevance(
     const missing = threads.filter((t) => !stored[t.id])
 
     if (missing.length > 0) {
-      const vectors = await embed(missing.map(threadEmbeddingText), "document")
+      const vectors = await embed(missing.map(threadEmbeddingText), "document", onUsage)
       const newEmbeddings: Record<string, number[]> = {}
       missing.forEach((t, i) => { newEmbeddings[t.id] = vectors[i]; stored[t.id] = vectors[i] })
       await saveEmbeddings(userEmail, newEmbeddings)
     }
 
-    const [queryVector] = await embed([query], "query")
+    const [queryVector] = await embed([query], "query", onUsage)
 
     const ranked = threads
       .map((t) => ({ thread: t, score: cosineSimilarity(queryVector, stored[t.id]) }))
@@ -103,7 +112,8 @@ export async function classifyThreadsByEmbedding(
   userEmail: string,
   newThreads: Thread[],
   categorizedRef: CategorizedThread[],
-  threshold = SIMILARITY_THRESHOLD
+  threshold = SIMILARITY_THRESHOLD,
+  onUsage?: OnUsage
 ): Promise<{ certain: CategorizedThread[]; uncertain: Thread[] }> {
   if (!embeddingsConfigured() || newThreads.length === 0) {
     return { certain: [], uncertain: newThreads }
@@ -115,12 +125,12 @@ export async function classifyThreadsByEmbedding(
     // Bootstrap: embed any already-categorized threads missing vectors
     const missingRefs = categorizedRef.filter((t) => !stored[t.id])
     if (missingRefs.length > 0) {
-      const vectors = await embed(missingRefs.map(threadEmbeddingText), "document")
+      const vectors = await embed(missingRefs.map(threadEmbeddingText), "document", onUsage)
       missingRefs.forEach((t, i) => { stored[t.id] = vectors[i] })
     }
 
     // Embed new threads
-    const newVectors = await embed(newThreads.map(threadEmbeddingText), "document")
+    const newVectors = await embed(newThreads.map(threadEmbeddingText), "document", onUsage)
     const toSave: Record<string, number[]> = {}
     newThreads.forEach((t, i) => { stored[t.id] = newVectors[i]; toSave[t.id] = newVectors[i] })
     if (missingRefs.length > 0) {

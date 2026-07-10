@@ -4,7 +4,7 @@ import { searchCategoryThreads } from "@/lib/claude"
 import { readThreadCache } from "@/lib/cache"
 import { rankThreadsByRelevance } from "@/lib/embeddings"
 import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
-import { trackUsage } from "@/lib/user"
+import { trackUsage, UsageOptions } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 const TOP_K_THREADS = 15
@@ -50,15 +50,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ summary: cached })
   }
 
+  const embeddingOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "search-embedding", opts)
   const { threads: relevantThreads, ranked } = await rankThreadsByRelevance(
     userEmail,
     threads,
     query,
-    TOP_K_THREADS
+    TOP_K_THREADS,
+    embeddingOnUsage
   )
 
-  const summary = await searchCategoryThreads(apiKey, relevantThreads, query, ranked)
+  const searchOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "category-search", opts)
+  const summary = await searchCategoryThreads(apiKey, relevantThreads, query, ranked, searchOnUsage)
   await setCachedResponse(userEmail, RESPONSE_CACHE_PREFIX, cacheKey, summary)
-  void trackUsage(userEmail, "category-search")
   return NextResponse.json({ summary })
 }
