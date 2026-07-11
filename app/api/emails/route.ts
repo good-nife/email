@@ -3,11 +3,10 @@ import { auth } from "@/auth"
 import { listThreadIds, fetchThreadsByIds } from "@/lib/gmail"
 import { categorizeThreads } from "@/lib/claude"
 import { classifyThreadsByEmbedding } from "@/lib/embeddings"
-import { readThreadCache, writeThreadCache, clearThreadCache } from "@/lib/cache"
 import { getOrCreateUser, trackUsage, UsageOptions } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
@@ -25,77 +24,72 @@ export async function GET(req: NextRequest) {
   }
 
   const userEmail = session.user?.email ?? "unknown"
-  const force = req.nextUrl.searchParams.get("force") === "true"
-
   void getOrCreateUser(userEmail)
+
+  const body = await req.json().catch(() => ({}))
+  const {
+    force = false,
+    cachedThreadIds = [],
+    cachedCategories = [],
+  } = body as {
+    force?: boolean
+    cachedThreadIds?: string[]
+    cachedCategories?: Array<{ id: string; category: string; tags: string[] }>
+  }
 
   try {
     const currentIds = await listThreadIds(session.accessToken, 200)
 
-    const cacheData = force ? null : await readThreadCache(userEmail)
-    let cached: Record<string, CategorizedThread> = cacheData ? { ...cacheData.emails } : {}
+    // If every cached thread is "Other", the prior categorization run failed — ignore the cache
+    const allOther = cachedCategories.length > 0 && cachedCategories.every((t) => t.category === "Other")
+    const useCache = !force && !allOther
 
-    // If every cached thread is "Other", the previous categorization run failed — clear it
-    const cachedValues = Object.values(cached)
-    if (cachedValues.length > 0 && cachedValues.every((t) => t.category === "Other")) {
-      await clearThreadCache(userEmail)
-      cached = {}
-    }
+    const cachedIdSet = new Set(useCache ? cachedThreadIds : [])
+    const newIds = currentIds.filter((id) => !cachedIdSet.has(id))
 
-    const newIds = currentIds.filter((id) => !cached[id])
+    // Build minimal ref objects for embedding-based classification
+    const cachedRef: CategorizedThread[] = (useCache ? cachedCategories : []).map(
+      ({ id, category, tags }) => ({
+        id, category, tags, subject: "", participants: [], snippet: "",
+        lastDate: "", isRead: true, messageCount: 1, messages: [],
+      })
+    )
 
+    const newThreads: CategorizedThread[] = []
     let categorizationError: string | undefined
 
     if (newIds.length > 0) {
-      const newThreads = await fetchThreadsByIds(session.accessToken, newIds)
-      const existingCategories = [...new Set(Object.values(cached).map((t) => t.category))]
+      const fetchedThreads = await fetchThreadsByIds(session.accessToken, newIds)
       try {
-        const cachedThreadsList = Object.values(cached) as CategorizedThread[]
         const embeddingOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "classify-embedding", opts)
         const { certain: bySimilarity, uncertain: toClassify } = await classifyThreadsByEmbedding(
-          userEmail,
-          newThreads,
-          cachedThreadsList,
-          undefined,
-          embeddingOnUsage
+          userEmail, fetchedThreads, cachedRef, undefined, embeddingOnUsage
         )
-        for (const thread of bySimilarity) {
-          cached[thread.id] = thread
-        }
+        newThreads.push(...bySimilarity)
 
         if (toClassify.length > 0) {
+          const existingCategories = [...new Set(cachedRef.map((t) => t.category))]
           const categorizeOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "categorize", opts)
           const categorized = await categorizeThreads(apiKey, toClassify, existingCategories, categorizeOnUsage)
-          for (const thread of categorized) {
-            cached[thread.id] = thread
-          }
+          newThreads.push(...categorized)
         }
-
-        await writeThreadCache(userEmail, cached)
       } catch (err: any) {
         categorizationError = err?.message || String(err)
         console.error("[/api/emails] categorization failed:", categorizationError)
       }
     }
 
-    const threads = currentIds.map((id) => cached[id]).filter(Boolean)
-    const updatedAt = newIds.length === 0 && cacheData ? cacheData.updatedAt : new Date().toISOString()
-
-    return NextResponse.json({ threads, cachedAt: updatedAt, newCount: newIds.length, categorizationError })
+    return NextResponse.json({
+      newThreads,
+      currentIds,
+      newCount: newIds.length,
+      cachedAt: new Date().toISOString(),
+      userEmail,
+      ...(categorizationError ? { categorizationError } : {}),
+    })
   } catch (err: any) {
     const msg = err?.message || String(err)
     console.error("[/api/emails]", msg)
-
-    try {
-      const cached = await readThreadCache(userEmail)
-      if (cached && !force) {
-        const threads = Object.values(cached.emails)
-        return NextResponse.json({ threads, cachedAt: cached.updatedAt, newCount: 0 })
-      }
-    } catch (cacheErr: any) {
-      console.error("[/api/emails] cache fallback also failed:", cacheErr?.message)
-    }
-
     return NextResponse.json({ error: msg || "Failed to load emails" }, { status: 500 })
   }
 }

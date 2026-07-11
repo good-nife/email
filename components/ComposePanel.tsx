@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Thread } from "@/types"
+import { CategorizedThread, Thread } from "@/types"
 import { useSettings } from "@/lib/useSettings"
 
 interface ComposePanelProps {
@@ -11,11 +11,12 @@ interface ComposePanelProps {
   autoDraft?: boolean
   categories?: string[]
   defaultCategory?: string
+  categoryThreads?: CategorizedThread[]
   onClose: () => void
   onSent?: () => void
 }
 
-export default function ComposePanel({ threadId, thread, scope = "full", autoDraft = false, categories = [], defaultCategory = "", onClose, onSent }: ComposePanelProps) {
+export default function ComposePanel({ threadId, thread, scope = "full", autoDraft = false, categories = [], defaultCategory = "", categoryThreads = [], onClose, onSent }: ComposePanelProps) {
   const { settings } = useSettings()
   const [minimized, setMinimized] = useState(false)
   const [to, setTo] = useState("")
@@ -75,8 +76,8 @@ export default function ComposePanel({ threadId, thread, scope = "full", autoDra
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           threadId
-            ? { threadId, scope, category: category || undefined, context: context || undefined, signature: settings.signature || undefined }
-            : { to, subject, category: category || undefined, context: context || undefined, signature: settings.signature || undefined }
+            ? { threadId, scope, context: context || undefined, signature: settings.signature || undefined, categoryThreads: categoryThreads.length ? categoryThreads : undefined }
+            : { to, subject, context: context || undefined, signature: settings.signature || undefined, categoryThreads: categoryThreads.length ? categoryThreads : undefined }
         ),
       })
       if (!res.ok) throw new Error(await res.text())

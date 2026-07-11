@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getThread, getSentEmails } from "@/lib/gmail"
 import { draftReply, draftNewEmail } from "@/lib/claude"
-import { readThreadCache } from "@/lib/cache"
-import { getCachedResponse, responseCacheKey, setCachedResponse } from "@/lib/response-cache"
 import { trackUsage, UsageOptions } from "@/lib/user"
 import { CategorizedThread } from "@/types"
-
-const DRAFT_CACHE_PREFIX = "drafts"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -21,21 +17,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { threadId, to, subject, context, scope, category, signature } = body
+  const { threadId, to, subject, context, scope, signature, categoryThreads } = body
   const userEmail = session.user?.email ?? "unknown"
 
-  const [sentEmails] = await Promise.all([getSentEmails(session.accessToken, 15)])
-
-  let categoryThreads: CategorizedThread[] = []
-  if (category) {
-    const cacheData = await readThreadCache(userEmail)
-    if (cacheData) {
-      categoryThreads = Object.values(cacheData.emails).filter((t) => t.category === category)
-    }
-  }
+  const sentEmails = await getSentEmails(session.accessToken, 15)
+  const ctxThreads: CategorizedThread[] = categoryThreads ?? []
 
   let draft: string
-
   const onUsage = (opts: UsageOptions) => void trackUsage(userEmail, "draft", opts)
 
   if (threadId) {
@@ -43,25 +31,14 @@ export async function POST(req: NextRequest) {
     if (scope === "latest") {
       thread = { ...thread, messages: thread.messages.slice(-1) }
     }
-
-    const cacheKey = responseCacheKey([
-      "reply",
-      threadId,
-      scope ?? "full",
-      category ?? "",
-      context ?? "",
-      signature ?? "",
-      thread.messageCount,
-    ])
-    const cached = await getCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey)
-    if (cached) {
-      return NextResponse.json({ draft: cached })
-    }
-
-    draft = await draftReply(apiKey, thread, sentEmails, categoryThreads, context ?? "", scope === "latest" ? "latest" : "full", signature ?? "", onUsage)
-    await setCachedResponse(userEmail, DRAFT_CACHE_PREFIX, cacheKey, draft)
+    draft = await draftReply(
+      apiKey, thread, sentEmails, ctxThreads, context ?? "",
+      scope === "latest" ? "latest" : "full", signature ?? "", onUsage
+    )
   } else {
-    draft = await draftNewEmail(apiKey, to, subject, context ?? "", sentEmails, categoryThreads, signature ?? "", onUsage)
+    draft = await draftNewEmail(
+      apiKey, to, subject, context ?? "", sentEmails, ctxThreads, signature ?? "", onUsage
+    )
   }
 
   return NextResponse.json({ draft })

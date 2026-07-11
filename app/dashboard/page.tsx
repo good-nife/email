@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { CategorizedThread, Email } from "@/types"
 import ComposePanel from "@/components/ComposePanel"
 import { useResizableSidebar } from "@/lib/useResizableSidebar"
 import { useSettings } from "@/lib/useSettings"
+import { getLocalUserEmail, readLocalThreadCache, writeLocalThreadCache } from "@/lib/local-cache"
 
 const COLOR_POOL = [
   "bg-blue-100 text-blue-700",
@@ -93,6 +94,7 @@ function getInitials(name: string) {
 }
 
 export default function DashboardPage() {
+  const localUserEmailRef = useRef<string | null>(null)
   const [threads, setThreads] = useState<CategorizedThread[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -127,7 +129,16 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    loadThreads(false)
+    // Load cached threads from localStorage immediately, then fetch fresh data
+    const email = getLocalUserEmail()
+    localUserEmailRef.current = email
+    if (email) {
+      const cached = readLocalThreadCache(email)
+      const cachedList = Object.values(cached)
+      if (cachedList.length > 0) setThreads(cachedList)
+    }
+
+    loadThreads(false, email ? true : false)
 
     const poll = setInterval(() => {
       if (!document.hidden) loadThreads(false, true)
@@ -140,9 +151,15 @@ export default function DashboardPage() {
     if (!silent) setLoading(true)
     if (!silent) setError("")
     try {
-      const res = await fetch(`/api/emails${force ? "?force=true" : ""}`, {
-        headers: {
-        },
+      const email = localUserEmailRef.current
+      const localCache = (force || !email) ? {} : readLocalThreadCache(email)
+      const cachedThreadIds = Object.keys(localCache)
+      const cachedCategories = Object.values(localCache).map((t) => ({ id: t.id, category: t.category, tags: t.tags }))
+
+      const res = await fetch("/api/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force, cachedThreadIds, cachedCategories }),
       })
       if (!res.ok) {
         const body = await res.text()
@@ -151,12 +168,31 @@ export default function DashboardPage() {
         throw new Error(msg)
       }
       const data = await res.json()
-      setThreads(data.threads ?? [])
+
+      // Merge: new threads override cache; trim to only threads still in Gmail
+      const newThreadsMap: Record<string, CategorizedThread> = Object.fromEntries(
+        (data.newThreads ?? []).map((t: CategorizedThread) => [t.id, t])
+      )
+      const merged: Record<string, CategorizedThread> = {}
+      for (const id of data.currentIds ?? []) {
+        const thread = newThreadsMap[id] ?? localCache[id]
+        if (thread) merged[id] = thread
+      }
+
+      if (data.userEmail) {
+        localUserEmailRef.current = data.userEmail
+        writeLocalThreadCache(data.userEmail, merged)
+      }
+
+      setThreads((data.currentIds ?? []).map((id: string) => merged[id]).filter(Boolean))
       setCachedAt(data.cachedAt ?? null)
       setNewCount(data.newCount ?? 0)
       setCategorizationError(data.categorizationError ?? "")
     } catch (e: any) {
-      if (!silent) setError(e.message || "Failed to load emails")
+      if (!silent) {
+        // Only show error if we have no local data to fall back on
+        if (threads.length === 0) setError(e.message || "Failed to load emails")
+      }
     } finally {
       if (!silent) setLoading(false)
     }
@@ -188,22 +224,15 @@ export default function DashboardPage() {
     setCategorySearchResult("")
   }
 
-  async function renameCategory(oldName: string) {
+  function renameCategory(oldName: string) {
     const newName = editValue.trim()
     setEditingCategory(null)
     if (!newName || newName === oldName) return
-    try {
-      const res = await fetch("/api/categories", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ oldName, newName }),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      setThreads((prev) => prev.map((t) => (t.category === oldName ? { ...t, category: newName } : t)))
-      if (filter === oldName) setFilter(newName)
-    } catch {
-      // leave category as-is on failure
-    }
+    const updated = threads.map((t) => (t.category === oldName ? { ...t, category: newName } : t))
+    setThreads(updated)
+    if (filter === oldName) setFilter(newName)
+    const email = localUserEmailRef.current
+    if (email) writeLocalThreadCache(email, Object.fromEntries(updated.map((t) => [t.id, t])))
   }
 
   async function handleCategorySearch(e: React.FormEvent) {
@@ -214,10 +243,8 @@ export default function DashboardPage() {
     try {
       const res = await fetch("/api/category-search", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ category: filter, query: categoryQuery }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: filter, query: categoryQuery, threads }),
       })
       if (!res.ok) {
         const body = await res.text()
@@ -703,6 +730,7 @@ export default function DashboardPage() {
           autoDraft={compose.mode === "reply" && compose.scope !== "none"}
           categories={uniqueCategories}
           defaultCategory={compose.category}
+          categoryThreads={compose.category ? threads.filter((t) => t.category === compose.category) : []}
           onClose={() => { setCompose(null); setActiveReplyScope((prev) => { if (compose?.mode !== 'reply') return prev; const next = { ...prev }; delete next[compose.threadId]; return next }) }}
           onSent={() => { setCompose(null); setActiveReplyScope({}) }}
         />
