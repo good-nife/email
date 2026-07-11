@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
   }
 
   const userEmail = session.user?.email ?? "unknown"
-  void getOrCreateUser(userEmail)
+  const user = await getOrCreateUser(userEmail)
+  const userId = user.id
 
   const body = await req.json().catch(() => ({}))
   const {
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       try {
         const embeddingOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "classify-embedding", opts)
         const { certain: bySimilarity, uncertain: toClassify } = await classifyThreadsByEmbedding(
-          userEmail, fetchedThreads, cachedRef, undefined, embeddingOnUsage
+          userId, fetchedThreads, cachedRef, undefined, embeddingOnUsage
         )
         newThreads.push(...bySimilarity)
 

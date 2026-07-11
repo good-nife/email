@@ -52,27 +52,27 @@ function threadEmbeddingText(t: Thread): string {
   return `${t.subject}\n${t.snippet}`.slice(0, 2000)
 }
 
-async function getStoredEmbeddings(userEmail: string): Promise<Record<string, number[]>> {
-  const rows = await prisma.embedding.findMany({ where: { userEmail } })
+async function getStoredEmbeddings(userId: string): Promise<Record<string, number[]>> {
+  const rows = await prisma.embedding.findMany({ where: { userId } })
   const result: Record<string, number[]> = {}
   for (const row of rows) result[row.threadId] = row.vector
   return result
 }
 
-async function saveEmbeddings(userEmail: string, newEmbeddings: Record<string, number[]>): Promise<void> {
+async function saveEmbeddings(userId: string, newEmbeddings: Record<string, number[]>): Promise<void> {
   await Promise.all(
     Object.entries(newEmbeddings).map(([threadId, vector]) =>
       prisma.embedding.upsert({
-        where: { userEmail_threadId: { userEmail, threadId } },
+        where: { userId_threadId: { userId, threadId } },
         update: { vector },
-        create: { userEmail, threadId, vector },
+        create: { userId, threadId, vector },
       })
     )
   )
 }
 
 export async function rankThreadsByRelevance(
-  userEmail: string,
+  userId: string,
   threads: Thread[],
   query: string,
   topK: number,
@@ -83,14 +83,14 @@ export async function rankThreadsByRelevance(
   }
 
   try {
-    const stored = await getStoredEmbeddings(userEmail)
+    const stored = await getStoredEmbeddings(userId)
     const missing = threads.filter((t) => !stored[t.id])
 
     if (missing.length > 0) {
       const vectors = await embed(missing.map(threadEmbeddingText), "document", onUsage)
       const newEmbeddings: Record<string, number[]> = {}
       missing.forEach((t, i) => { newEmbeddings[t.id] = vectors[i]; stored[t.id] = vectors[i] })
-      await saveEmbeddings(userEmail, newEmbeddings)
+      await saveEmbeddings(userId, newEmbeddings)
     }
 
     const [queryVector] = await embed([query], "query", onUsage)
@@ -109,7 +109,7 @@ export async function rankThreadsByRelevance(
 }
 
 export async function classifyThreadsByEmbedding(
-  userEmail: string,
+  userId: string,
   newThreads: Thread[],
   categorizedRef: CategorizedThread[],
   threshold = SIMILARITY_THRESHOLD,
@@ -120,7 +120,7 @@ export async function classifyThreadsByEmbedding(
   }
 
   try {
-    const stored = await getStoredEmbeddings(userEmail)
+    const stored = await getStoredEmbeddings(userId)
 
     // Bootstrap: embed any already-categorized threads missing vectors
     const missingRefs = categorizedRef.filter((t) => !stored[t.id])
@@ -136,7 +136,7 @@ export async function classifyThreadsByEmbedding(
     if (missingRefs.length > 0) {
       missingRefs.forEach((t) => { toSave[t.id] = stored[t.id] })
     }
-    await saveEmbeddings(userEmail, toSave)
+    await saveEmbeddings(userId, toSave)
 
     const refs = categorizedRef
       .filter((t) => stored[t.id])

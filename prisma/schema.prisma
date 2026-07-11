@@ -15,6 +15,7 @@ model User {
   subscribedUntil  DateTime?
   createdAt        DateTime     @default(now())
   usageEvents      UsageEvent[]
+  embeddings       Embedding[]
 }
 
 model UsageEvent {
@@ -34,11 +35,13 @@ model UsageEvent {
 
 model Embedding {
   id        String   @id @default(cuid())
-  userEmail String
+  userId    String
   threadId  String
   vector    Float[]
   updatedAt DateTime @updatedAt
 
-  @@unique([userEmail, threadId])
-  @@index([userEmail])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+  @@index([userId])
 }

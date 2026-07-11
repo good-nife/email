@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { searchCategoryThreads } from "@/lib/claude"
 import { rankThreadsByRelevance } from "@/lib/embeddings"
-import { trackUsage, UsageOptions } from "@/lib/user"
+import { getOrCreateUser, trackUsage, UsageOptions } from "@/lib/user"
 import { CategorizedThread } from "@/types"
 
 const TOP_K_THREADS = 15
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const userEmail = session.user?.email ?? "unknown"
+  const { id: userId } = await getOrCreateUser(userEmail)
   const threads = (clientThreads as CategorizedThread[]).filter(
     (t) => !category || category === "All" || t.category === category
   )
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const embeddingOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "search-embedding", opts)
   const { threads: relevantThreads, ranked } = await rankThreadsByRelevance(
-    userEmail, threads, query, TOP_K_THREADS, embeddingOnUsage
+    userId, threads, query, TOP_K_THREADS, embeddingOnUsage
   )
 
   const searchOnUsage = (opts: UsageOptions) => void trackUsage(userEmail, "category-search", opts)
