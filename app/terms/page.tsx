@@ -50,9 +50,11 @@ export default function TermsPage() {
         <p className="text-slate-600 leading-relaxed mb-10">
           These Terms of Use (&ldquo;Terms&rdquo;) govern your access to and use of Clario, an
           AI-powered email assistant, including our website, applications, and related services
-          (collectively, the &ldquo;Service&rdquo;). By creating an account, connecting an email
-          provider, or otherwise using the Service, you agree to be bound by these Terms. If you
-          do not agree, do not use the Service.
+          (collectively, the &ldquo;Service&rdquo;), provided by Clario LLC, a Wyoming limited
+          liability company (&ldquo;Clario,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
+          &ldquo;our&rdquo;). By creating an account, connecting an email provider, or otherwise
+          using the Service, you agree to be bound by these Terms. If you do not agree, do not use
+          the Service.
         </p>
 
         <Section title="1. Eligibility and Accounts">
