@@ -690,7 +690,7 @@ export default function LandingPage() {
             </span>
             Clario
           </div>
-          <p className="text-slate-600 text-sm">© 2026 Clario LLC. Built with care.</p>
+          <p className="text-slate-600 text-sm">© 2026 Clario AI LLC. Built with care.</p>
           <div className="flex gap-6 text-sm text-slate-500">
             <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
             <a href="/terms" className="hover:text-white transition-colors">Terms</a>

@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         <p className="text-slate-500 text-sm mb-12">Last updated: {LAST_UPDATED}</p>
 
         <p className="text-slate-600 leading-relaxed mb-10">
-          This Privacy Policy explains how Clario LLC, a Wyoming limited liability company
+          This Privacy Policy explains how Clario AI LLC, a Wyoming limited liability company
           (&ldquo;Clario,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;),
           collects, uses, and shares information when you use our website, applications, and
           related services (collectively, the &ldquo;Service&rdquo;). By using the Service, you
