@@ -290,6 +290,18 @@ export default function DashboardPage() {
     return acc
   }, {})
   const uniqueCategories = [...new Set(threads.map((t) => t.category))]
+  const [loadingProgress, setLoadingProgress] = useState(0)
+
+  useEffect(() => {
+    const isFirstLoad = loading && threads.length === 0
+    if (!isFirstLoad) { setLoadingProgress(0); return }
+    const start = Date.now()
+    const timer = setInterval(() => {
+      setLoadingProgress(85 * (1 - Math.exp(-(Date.now() - start) / 20_000)))
+    }, 150)
+    return () => clearInterval(timer)
+  }, [loading, threads.length === 0])
+
   const { width: sidebarWidth, startResize } = useResizableSidebar("sidebar-width", 208)
   const { settings } = useSettings()
 
@@ -612,9 +624,17 @@ export default function DashboardPage() {
       <main className="flex-1 min-w-0 px-6 py-6">
         {loading && threads.length === 0 && (
           <div className="text-center py-20 text-slate-400">
-            <div className="text-3xl mb-3">⏳</div>
-            <p>Loading and categorizing your conversations…</p>
-            <p className="text-sm mt-1">First load takes about 15 seconds</p>
+            <div className="text-2xl mb-3 text-primary-400">✦</div>
+            <p className="text-slate-600 font-medium">Categorizing your inbox…</p>
+            <p className="text-sm mt-1 mb-6">First load takes about 15–30 seconds</p>
+            <div className="max-w-xs mx-auto">
+              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary-500 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+            </div>
           </div>
         )}
 
