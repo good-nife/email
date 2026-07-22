@@ -132,9 +132,33 @@ const serif = { fontFamily: "var(--font-serif, 'Instrument Serif', serif)" }
 
 export default function LandingPage() {
   const [modalOpen, setModalOpen] = useState(false)
+  const [waitlistEmail, setWaitlistEmail] = useState("")
+  const [waitlistLoading, setWaitlistLoading] = useState(false)
+  const [waitlistDone, setWaitlistDone] = useState(false)
+  const [waitlistError, setWaitlistError] = useState("")
 
   function openModal()    { setModalOpen(true) }
   function signInDirect() { signIn("google", { callbackUrl: "/dashboard" }) }
+
+  async function handleWaitlist(e: React.FormEvent) {
+    e.preventDefault()
+    if (!waitlistEmail.includes("@")) return
+    setWaitlistLoading(true)
+    setWaitlistError("")
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: waitlistEmail }),
+      })
+      if (!res.ok) throw new Error()
+      setWaitlistDone(true)
+    } catch {
+      setWaitlistError("Something went wrong — try again.")
+    } finally {
+      setWaitlistLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen" style={{ fontFamily: "var(--font-sans, 'Hanken Grotesk', sans-serif)", background: "#EFF4FB" }}>
@@ -208,16 +232,16 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
-              <button
-                onClick={openModal}
+              <a
+                href="#waitlist"
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold text-white text-[15px] transition-all hover:opacity-90 shadow-lg shadow-primary-600/30"
                 style={{ background: "linear-gradient(135deg, #5390D5 0%, #3D7EC9 60%, #2E68B0 100%)" }}
               >
-                Connect your email
+                Request early access
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                 </svg>
-              </button>
+              </a>
               <a
                 href="#how-it-works"
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold text-slate-600 text-[15px] bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm"
@@ -647,12 +671,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Dark CTA ───────────────────────────────────────────────────────── */}
+      {/* ── Dark CTA / Waitlist ────────────────────────────────────────────── */}
       <section
+        id="waitlist"
         className="py-28 px-6 relative overflow-hidden"
         style={{ background: "#111827" }}
       >
-        {/* Subtle radial glow */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(61,126,201,0.22) 0%, transparent 70%)" }}
@@ -665,19 +689,39 @@ export default function LandingPage() {
             Ready for an inbox<br className="hidden sm:block" /> that works for you?
           </h2>
           <p className="text-slate-400 text-lg mb-9 max-w-xl mx-auto">
-            Connect your email in seconds. No credit card, no commitment.
+            Clario is in early access. Drop your email and we'll add you.
           </p>
-          <button
-            onClick={openModal}
-            className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full font-semibold text-white text-lg transition-all hover:opacity-90 shadow-xl"
-            style={{ background: "linear-gradient(135deg, #5390D5 0%, #3D7EC9 60%, #2E68B0 100%)", boxShadow: "0 8px 32px rgba(61,126,201,0.40)" }}
-          >
-            Get started for free
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </button>
-          <p className="text-slate-600 text-sm mt-5">Read-only access · Disconnect anytime</p>
+
+          {waitlistDone ? (
+            <div className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-semibold text-lg">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              You're on the list!
+            </div>
+          ) : (
+            <form onSubmit={handleWaitlist} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input
+                type="email"
+                value={waitlistEmail}
+                onChange={(e) => setWaitlistEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+                className="flex-1 px-5 py-3.5 rounded-full bg-white/10 border border-white/20 text-white placeholder:text-slate-500 outline-none focus:border-primary-400 focus:bg-white/15 transition-all text-sm"
+              />
+              <button
+                type="submit"
+                disabled={waitlistLoading}
+                className="px-7 py-3.5 rounded-full font-semibold text-white transition-all hover:opacity-90 shadow-xl disabled:opacity-60 whitespace-nowrap"
+                style={{ background: "linear-gradient(135deg, #5390D5 0%, #3D7EC9 60%, #2E68B0 100%)", boxShadow: "0 8px 32px rgba(61,126,201,0.40)" }}
+              >
+                {waitlistLoading ? "Joining…" : "Request access"}
+              </button>
+            </form>
+          )}
+
+          {waitlistError && <p className="text-red-400 text-sm mt-3">{waitlistError}</p>}
+          <p className="text-slate-600 text-sm mt-5">No credit card · Read-only access · Disconnect anytime</p>
         </div>
       </section>
 
