@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { Category, CategorizedEmail, CategorizedThread, Email, Thread } from "@/types"
 import { createClaudeMessageWithFallback, CATEGORIZATION_MODEL, ClaudeContentBlock } from "./claude-models"
+import { tryParseJSON as tryParseJSONWithRepair } from "./json-repair"
 import { UsageOptions } from "./user"
 
 type OnUsage = (opts: UsageOptions) => void
@@ -85,7 +86,7 @@ Reply with JSON only, no explanation:
 
   const text = message.content[0].type === "text" ? message.content[0].text : "{}"
   const result: { categories: string[]; assignments: { index: number; category: string; tags: string[] }[] } =
-    tryParseJSON(text, { categories: [], assignments: [] })
+    tryParseJSONWithRepair(text, { categories: [], assignments: [] })
 
   return emails.map((email, i) => {
     const assignment = result.assignments.find((a) => a.index === i)
@@ -149,13 +150,18 @@ You MUST respond with ONLY a valid JSON object — no explanation, no markdown, 
     throw new Error(`Claude (${CATEGORIZATION_MODEL}) returned an empty response`)
   }
 
-  const result = tryParseJSON<{
+  const result = tryParseJSONWithRepair<{
     categories: string[]
     assignments: { index: number; category: string; tags: string[]; oneLiner?: string }[]
   }>(rawText, { categories: [], assignments: [] })
 
   if (!result.assignments?.length) {
-    throw new Error(`Claude response could not be parsed as JSON. Raw: ${rawText.slice(0, 300)}`)
+    return threads.map((thread) => ({
+      ...thread,
+      category: "Other",
+      tags: [],
+      oneLiner: undefined,
+    }))
   }
 
   return threads.map((thread, i) => {
