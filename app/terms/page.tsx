@@ -207,8 +207,8 @@ export default function TermsPage() {
         <Section title="14. Contact">
           <p>
             Questions about these Terms can be sent to{" "}
-            <a href="mailto:legal@clario.app" className="text-primary-700 hover:underline">
-              legal@clario.app
+            <a href="mailto:info@clarioai.app" className="text-primary-700 hover:underline">
+              info@clarioai.app
             </a>
             .
           </p>

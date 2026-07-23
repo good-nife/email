@@ -178,8 +178,8 @@ export default function PrivacyPage() {
         <Section title="11. Contact">
           <p>
             Questions about this Privacy Policy or your information can be sent to{" "}
-            <a href="mailto:privacy@clario.app" className="text-primary-700 hover:underline">
-              privacy@clario.app
+            <a href="mailto:info@clarioai.app" className="text-primary-700 hover:underline">
+              info@clarioai.app
             </a>
             .
           </p>
