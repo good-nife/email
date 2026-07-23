@@ -62,9 +62,10 @@ export default function PrivacyPage() {
 
         <Section title="1. Information We Collect">
           <p><strong>Account information.</strong> When you sign in with Google, we receive your name, email address, and profile information from Google.</p>
-          <p><strong>Email data.</strong> When you connect an email account, you grant the Service read-only access to your inbox, plus permission to send and organize mail on your behalf. We access your email content and metadata (senders, recipients, subjects, timestamps, message bodies) only as needed to provide the features you use, such as categorization, summarization, search, and drafting.</p>
-          <p><strong>Usage data.</strong> We record which features you use and metadata about each AI request (such as the model used and token counts) to operate, monitor cost, and improve the Service. This usage data does not include the content of your emails.</p>
-          <p><strong>Local device storage.</strong> Drafts, summaries, and search results are cached in your browser&rsquo;s local storage on your device so the Service feels fast. This cached content is not something we control once it is on your device, and clearing your browser data will remove it.</p>
+          <p><strong>Email data.</strong> When you connect a Gmail account, you grant the Service permission to read your inbox and email metadata, send messages on your behalf when you explicitly choose to send them, and organize messages where a feature uses that capability. We may access sender and recipient addresses, subjects, timestamps, message bodies, thread identifiers, snippets, labels, and read status only as needed to provide the features you use, such as categorization, summarization, search, drafting, and sending.</p>
+          <p><strong>Usage data.</strong> We record which features you use and metadata about each AI request, such as the provider, model, action, and token counts, to operate the Service, monitor usage and cost, maintain reliability, and improve the Service. Usage records do not include the content of your emails.</p>
+          <p><strong>Embeddings.</strong> If enabled, we create numerical representations of limited thread information, such as a subject and snippet, to rank search results and classify related threads. These embeddings are stored on our servers with your account record and are not intended to be readable email content.</p>
+          <p><strong>Local device storage.</strong> Drafts, summaries, search results, and cached thread information may be stored in your browser&rsquo;s local storage on your device so the Service feels fast. This browser cache is controlled by your device and can be removed by clearing the site&rsquo;s browser data.</p>
         </Section>
 
         <Section title="2. How We Use Information">
@@ -72,13 +73,17 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-1.5">
             <li>Provide the Service, including AI-generated categorization, summaries, search answers, and draft replies;</li>
             <li>Authenticate you and maintain your session;</li>
+            <li>Send messages only when you choose to send an approved draft or reply;</li>
+            <li>Organize or update Gmail messages when you use a feature that performs that action;</li>
             <li>Monitor, maintain, and improve the reliability and performance of the Service;</li>
             <li>Detect, prevent, and address fraud, abuse, or security issues;</li>
             <li>Comply with legal obligations.</li>
           </ul>
           <p>
-            We do not sell your data, and we do not use your email content to train AI models,
-            ours or anyone else&rsquo;s.
+            We do not sell your data, use Gmail data for advertising, or use your email content to
+            train AI models, ours or anyone else&rsquo;s. We do not allow people to read your email
+            content except when necessary for security, legal compliance, or when you give us
+            specific permission to do so.
           </p>
         </Section>
 
@@ -90,32 +95,41 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-1.5">
             <li><strong>Google</strong> — to authenticate you and to read and send email on your behalf via the Gmail API;</li>
-            <li><strong>Anthropic</strong> — to process email content and generate AI summaries, search answers, and drafts;</li>
-            <li><strong>Voyage AI</strong> — optionally, to generate embeddings that rank relevant email threads before they are sent to Anthropic;</li>
+            <li><strong>Anthropic</strong> — to process email content and generate AI categorization, summaries, search answers, and drafts. Email content is sent to Anthropic only to provide these user-facing features and is not used to train its models for Clario;</li>
+            <li><strong>Voyage AI</strong> — optionally, to generate embeddings from limited thread information so we can rank relevant email threads before they are sent to Anthropic;</li>
             <li><strong>Our database and infrastructure providers</strong> — to host account records and usage data described in Section 1.</li>
           </ul>
           <p>
-            We may also disclose information if required by law, or to protect the rights,
-            property, or safety of Clario, our users, or others.
+            These providers may process information only as necessary to provide or secure the
+            Service and under obligations that restrict unrelated use. We do not sell or share
+            Gmail data with advertisers, data brokers, or other third parties for their own
+            purposes. We may also disclose information if required by law, or to protect the
+            rights, property, or safety of Clario, our users, or others.
           </p>
         </Section>
 
         <Section title="4. Data Storage and Retention">
           <p>
             Account records, such as your email address and usage metadata, are retained for as
-            long as your account is active. Email content is processed to generate a response and
-            is not permanently stored on our servers; where email content is cached to speed up
-            repeated requests, it is stored locally in your browser rather than on our servers. We
-            retain vector representations of your email threads (not the underlying text) to power
-            search ranking; these are deleted when you disconnect your account or request deletion.
+            long as your account is active and for as long as reasonably necessary for legitimate
+            operational, legal, security, and accounting purposes. Email content is retrieved from
+            Gmail when needed to provide a feature and is not intended to be permanently stored
+            as email content on our servers. Drafts, summaries, search results, and cached thread
+            information may remain in your browser&rsquo;s local storage until you clear it. We retain
+            numerical thread embeddings on our servers to power search ranking and classification;
+            these embeddings do not contain the underlying email text, but they remain associated
+            with your account until we delete them as part of a deletion request or other applicable
+            retention process.
           </p>
           <p>
-            You may disconnect your email account and delete your account data at any time by
-            revoking access from your{" "}
+            You may stop Gmail access at any time by revoking Clario&rsquo;s access from your{" "}
             <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-primary-700 hover:underline">
               Google Account permissions
             </a>{" "}
-            page and contacting us to request deletion of remaining records.
+            page. To request deletion of account-associated records, including usage records and
+            embeddings, contact us using the details below. Revoking Google access does not itself
+            clear your browser&rsquo;s local cache; clear the Clario site data in your browser to remove
+            locally cached content.
           </p>
         </Section>
 
@@ -126,9 +140,9 @@ export default function PrivacyPage() {
               Google API Services User Data Policy
             </a>
             , including the Limited Use requirements. We access Gmail data only to provide
-            user-facing features within the Service, and we do not use Gmail data for advertising,
-            and we do not allow humans to read it except as necessary for security, legal
-            compliance, or with your consent.
+            user-facing features within the Service. We do not use Gmail data for advertising or
+            for training AI models, and we do not allow humans to read it except as necessary for
+            security, legal compliance, or with your specific consent.
           </p>
         </Section>
 
