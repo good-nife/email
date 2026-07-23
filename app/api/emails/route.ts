@@ -77,6 +77,14 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         categorizationError = err?.message || String(err)
         console.error("[/api/emails] categorization failed:", categorizationError)
+        newThreads.push(
+          ...fetchedThreads.map((thread) => ({
+            ...thread,
+            category: "Other",
+            tags: [],
+            oneLiner: undefined,
+          }))
+        )
       }
     }
 
